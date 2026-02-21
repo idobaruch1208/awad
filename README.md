@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AWAD AI Content Engine
 
-## Getting Started
+> **Internal portal** for the AWAD team to generate, refine, and schedule LinkedIn Company Page posts using a RAG-powered AI pipeline with a built-in learning loop.
 
-First, run the development server:
+## Quick Start
+
+1. **Fill in `.env.local`** — replace all placeholder values (see below)
+2. **Run the Supabase migration** — paste `supabase/migrations/001_initial_schema.sql` into the Supabase SQL Editor
+3. **Create a Pinecone index** — name it `awad-content`, 768 dimensions, cosine metric
+4. **Install & run:**
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables (`.env.local`)
 
-## Learn More
+| Variable | Where to get it |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase project Settings → API |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/) |
+| `PINECONE_API_KEY` | [Pinecone Console](https://app.pinecone.io/) |
+| `PINECONE_INDEX_NAME` | Your Pinecone index name (`awad-content`) |
+| `HUGGINGFACE_API_KEY` | [HuggingFace Settings](https://huggingface.co/settings/tokens) |
+| `LINKEDIN_CLIENT_ID` | [LinkedIn Developer Portal](https://developer.linkedin.com/) |
+| `LINKEDIN_CLIENT_SECRET` | LinkedIn Developer Portal |
+| `LINKEDIN_REDIRECT_URI` | `http://localhost:3000/api/auth/linkedin/callback` |
+| `CRON_SECRET` | Any random string (e.g. `openssl rand -hex 32`) |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## User Flow
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+Generate Post button
+       │
+       ▼
+Topic Selection (AI chips or custom input)
+       │
+       ▼
+RAG Pipeline: embed → Pinecone → Gemini Pro + Image gen
+       │
+       ▼
+Post Editor: edit text + image, refine with AI
+       │
+       ▼
+Approve → Learning loop (diff → style rules → Pinecone)
+       │
+       ├─► Publish Now  → LinkedIn API → Published
+       └─► Schedule     → Supabase → Cron → Published
+```
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Layer | Technology |
+|---|---|
+| Frontend & Hosting | Vercel + Next.js 14 (App Router) |
+| Backend | Next.js API Routes (serverless) |
+| Database & Auth | Supabase (Free Tier) |
+| Vector DB | Pinecone (Free Tier, 768-dim) |
+| AI Text | Google Gemini 1.5 Pro/Flash |
+| AI Embeddings | Gemini text-embedding-004 |
+| AI Images | Hugging Face Inference (Stable Diffusion XL) |
+| Scheduling | Vercel Cron + GitHub Actions fallback |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+1. Push to GitHub
+2. Connect repo to [Vercel](https://vercel.com)
+3. Set all env vars in Vercel Dashboard
+4. `vercel.json` already configures the hourly cron job
+5. Set `CRON_SECRET` in Vercel Dashboard + GitHub Actions Secrets
