@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const topics = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
             const result = await model.generateContent(AWAD_TOPICS_PROMPT);
             const text = result.response.text().trim();
             // Extract JSON array from response

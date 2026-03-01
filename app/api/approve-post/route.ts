@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         let styleLessons: string[] = [];
         if (diffSummary) {
             const rulesText = await withRetry(async () => {
-                const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const prompt = `A user edited an AI-generated LinkedIn post for AWAD (a startup law firm). 
 Based on the following diff, infer 1-3 concise writing style rules that should be followed in future posts.
 

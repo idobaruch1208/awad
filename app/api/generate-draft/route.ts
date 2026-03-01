@@ -49,22 +49,25 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        // Step 1: Embed the topic
-        const topicEmbedding = await embed(topic);
-
-        // Step 2: Query Vector DB for context
-        const [approvedPostsResults, styleLessonsResults] = await Promise.all([
-            query(topicEmbedding, 'approved_posts', 3).catch(() => []),
-            query(topicEmbedding, 'style_lessons', 2).catch(() => []),
-        ]);
-
-        const approvedPosts = approvedPostsResults.map((r) => r.text ?? '').filter(Boolean);
-        const styleLessons = styleLessonsResults.map((r) => r.lesson ?? '').filter(Boolean);
+        // Step 1 & 2: Try to get RAG context (gracefully skip if embeddings unavailable)
+        let approvedPosts: string[] = [];
+        let styleLessons: string[] = [];
+        try {
+            const topicEmbedding = await embed(topic);
+            const [approvedPostsResults, styleLessonsResults] = await Promise.all([
+                query(topicEmbedding, 'approved_posts', 3).catch(() => []),
+                query(topicEmbedding, 'style_lessons', 2).catch(() => []),
+            ]);
+            approvedPosts = approvedPostsResults.map((r) => r.text ?? '').filter(Boolean);
+            styleLessons = styleLessonsResults.map((r) => r.lesson ?? '').filter(Boolean);
+        } catch (ragError) {
+            console.warn('[generate-draft] RAG context unavailable, generating without context:', ragError);
+        }
 
         // Step 3 & 4: Generate post text + image concurrently
         const [postText, imageUrl] = await Promise.all([
             withRetry(async () => {
-                const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const prompt = buildSystemPrompt(topic, approvedPosts, styleLessons);
                 const result = await model.generateContent(prompt);
                 return result.response.text().trim();

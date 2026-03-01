@@ -1,24 +1,51 @@
 import { createClient } from '@/lib/supabase/server';
 import StatusBadge from '@/components/StatusBadge';
 import Link from 'next/link';
-import type { Post } from '@/lib/types';
+import type { Post, PostStatus } from '@/lib/types';
 import { format } from 'date-fns';
 
-export default async function PostsPage() {
+type FilterType = 'all' | 'published' | 'scheduled' | 'in-progress';
+
+const FILTER_CONFIG: Record<FilterType, { label: string; title: string; statuses: PostStatus[] | null }> = {
+    all: { label: 'All', title: 'All Posts', statuses: null },
+    published: { label: 'Published', title: 'Published Posts', statuses: ['Published'] },
+    scheduled: { label: 'Scheduled', title: 'Scheduled Posts', statuses: ['Scheduled'] },
+    'in-progress': { label: 'In Progress', title: 'In Progress', statuses: ['Draft', 'Reviewing', 'Approved'] },
+};
+
+export default async function PostsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ filter?: string }>;
+}) {
+    const params = await searchParams;
+    const activeFilter = (params.filter as FilterType) || 'all';
+    const filterConfig = FILTER_CONFIG[activeFilter] ?? FILTER_CONFIG.all;
+
     const supabase = await createClient();
-    const { data: posts } = await supabase
+
+    // Build query with filter
+    let query = supabase
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
 
-    const allPosts: Post[] = posts ?? [];
+    if (filterConfig.statuses) {
+        query = query.in('status', filterConfig.statuses);
+    }
+
+    const { data: posts } = await query;
+    const filteredPosts: Post[] = posts ?? [];
 
     return (
         <div className="p-8">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">All Posts</h1>
-                    <p className="text-gray-400 text-sm mt-1">{allPosts.length} post{allPosts.length !== 1 ? 's' : ''} total</p>
+                    <h1 className="text-2xl font-bold text-white">{filterConfig.title}</h1>
+                    <p className="text-gray-400 text-sm mt-1">
+                        {filteredPosts.length} post{filteredPosts.length !== 1 ? 's' : ''}
+                        {activeFilter !== 'all' ? ` · ${filterConfig.label}` : ' total'}
+                    </p>
                 </div>
                 <Link href="/dashboard/generate" className="btn-primary">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -28,14 +55,41 @@ export default async function PostsPage() {
                 </Link>
             </div>
 
-            {allPosts.length === 0 ? (
+            {/* Filter Pills */}
+            <div className="flex gap-2 mb-6">
+                {(Object.entries(FILTER_CONFIG) as [FilterType, typeof filterConfig][]).map(([key, config]) => (
+                    <Link
+                        key={key}
+                        href={key === 'all' ? '/dashboard/posts' : `/dashboard/posts?filter=${key}`}
+                        className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${activeFilter === key
+                                ? 'bg-violet-600 text-white shadow-md shadow-violet-900/30'
+                                : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700/60 hover:text-gray-300 border border-gray-700/50'
+                            }`}
+                    >
+                        {config.label}
+                    </Link>
+                ))}
+            </div>
+
+            {filteredPosts.length === 0 ? (
                 <div className="glass rounded-2xl py-24 flex flex-col items-center text-center">
                     <div className="text-5xl mb-4">📭</div>
-                    <h2 className="text-lg font-semibold text-white mb-2">No posts yet</h2>
-                    <p className="text-gray-400 text-sm mb-6">Generate your first AI-powered LinkedIn post</p>
-                    <Link href="/dashboard/generate" className="btn-primary">
-                        Generate Post
-                    </Link>
+                    <h2 className="text-lg font-semibold text-white mb-2">
+                        {activeFilter !== 'all' ? `No ${filterConfig.label.toLowerCase()} posts` : 'No posts yet'}
+                    </h2>
+                    <p className="text-gray-400 text-sm mb-6">
+                        {activeFilter !== 'all'
+                            ? 'Try a different filter or generate a new post'
+                            : 'Generate your first AI-powered LinkedIn post'}
+                    </p>
+                    <div className="flex gap-3">
+                        {activeFilter !== 'all' && (
+                            <Link href="/dashboard/posts" className="btn-secondary">View All Posts</Link>
+                        )}
+                        <Link href="/dashboard/generate" className="btn-primary">
+                            Generate Post
+                        </Link>
+                    </div>
                 </div>
             ) : (
                 <div className="glass rounded-xl overflow-hidden">
@@ -49,15 +103,17 @@ export default async function PostsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800">
-                            {allPosts.map((post) => (
-                                <tr key={post.id} className="hover:bg-gray-900/40 transition-colors">
+                            {filteredPosts.map((post) => (
+                                <tr key={post.id} className="hover:bg-gray-900/40 transition-colors group">
                                     <td className="px-6 py-4">
-                                        <div className="text-white font-medium truncate max-w-xs">{post.topic}</div>
-                                        {post.final_text && (
-                                            <div className="text-gray-500 text-xs truncate max-w-xs mt-0.5">
-                                                {post.final_text.slice(0, 80)}...
-                                            </div>
-                                        )}
+                                        <Link href={`/dashboard/posts/${post.id}`} className="block">
+                                            <div className="text-white font-medium truncate max-w-xs group-hover:text-violet-300 transition-colors">{post.topic}</div>
+                                            {post.final_text && (
+                                                <div className="text-gray-500 text-xs truncate max-w-xs mt-0.5">
+                                                    {post.final_text.slice(0, 80)}...
+                                                </div>
+                                            )}
+                                        </Link>
                                     </td>
                                     <td className="px-6 py-4">
                                         <StatusBadge status={post.status} />

@@ -20,9 +20,13 @@ export async function upsert(
     metadata?: Record<string, string>
 ) {
     const index = getIndex();
-    // Pinecone SDK v3: upsert() takes UpsertOptions with a `records` array
-    await (index.namespace(namespace) as unknown as { upsert: (v: unknown) => Promise<void> })
-        .upsert([{ id, values, metadata: metadata ?? {} }]);
+    await index.namespace(namespace).upsert({
+        records: [{
+            id,
+            values,
+            metadata: metadata ?? {},
+        }],
+    });
 }
 
 /**

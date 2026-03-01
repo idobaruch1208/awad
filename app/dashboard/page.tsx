@@ -9,17 +9,18 @@ export default async function DashboardHomePage() {
     const { data: posts } = await supabase
         .from('posts')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .order('created_at', { ascending: false });
 
-    const recentPosts: Post[] = posts ?? [];
+    const allPosts: Post[] = posts ?? [];
 
     const stats = {
-        total: recentPosts.length,
-        published: recentPosts.filter((p) => p.status === 'Published').length,
-        scheduled: recentPosts.filter((p) => p.status === 'Scheduled').length,
-        draft: recentPosts.filter((p) => p.status === 'Draft' || p.status === 'Reviewing').length,
+        total: allPosts.length,
+        published: allPosts.filter((p) => p.status === 'Published').length,
+        scheduled: allPosts.filter((p) => p.status === 'Scheduled').length,
+        draft: allPosts.filter((p) => p.status === 'Draft' || p.status === 'Reviewing' || p.status === 'Approved').length,
     };
+
+    const recentPosts = allPosts.slice(0, 5);
 
     return (
         <div className="p-8">
@@ -37,19 +38,23 @@ export default async function DashboardHomePage() {
                 </Link>
             </div>
 
-            {/* Stats */}
+            {/* Stats — Clickable Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {[
-                    { label: 'Total Posts', value: stats.total, icon: '📄', color: 'text-gray-300' },
-                    { label: 'Published', value: stats.published, icon: '✅', color: 'text-green-400' },
-                    { label: 'Scheduled', value: stats.scheduled, icon: '⏰', color: 'text-indigo-400' },
-                    { label: 'In Progress', value: stats.draft, icon: '✍️', color: 'text-orange-400' },
+                    { label: 'Total Posts', value: stats.total, icon: '📄', color: 'text-gray-300', href: '/dashboard/posts' },
+                    { label: 'Published', value: stats.published, icon: '✅', color: 'text-green-400', href: '/dashboard/posts?filter=published' },
+                    { label: 'Scheduled', value: stats.scheduled, icon: '⏰', color: 'text-indigo-400', href: '/dashboard/posts?filter=scheduled' },
+                    { label: 'In Progress', value: stats.draft, icon: '✍️', color: 'text-orange-400', href: '/dashboard/posts?filter=in-progress' },
                 ].map((stat) => (
-                    <div key={stat.label} className="glass rounded-xl p-5">
+                    <Link
+                        key={stat.label}
+                        href={stat.href}
+                        className="glass rounded-xl p-5 transition-all duration-200 hover:scale-[1.03] hover:border-violet-600/50 hover:shadow-lg hover:shadow-violet-900/20 cursor-pointer group"
+                    >
                         <div className="text-2xl mb-2">{stat.icon}</div>
                         <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-                        <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
-                    </div>
+                        <div className="text-xs text-gray-500 mt-1 group-hover:text-gray-400 transition-colors">{stat.label}</div>
+                    </Link>
                 ))}
             </div>
 
@@ -72,8 +77,11 @@ export default async function DashboardHomePage() {
                 ) : (
                     <ul className="divide-y divide-gray-800">
                         {recentPosts.map((post) => (
-                            <li key={post.id} className="px-6 py-4 hover:bg-gray-900/40 transition-colors">
-                                <div className="flex items-center justify-between gap-4">
+                            <li key={post.id}>
+                                <Link
+                                    href={`/dashboard/posts/${post.id}`}
+                                    className="px-6 py-4 hover:bg-gray-900/40 transition-colors flex items-center justify-between gap-4"
+                                >
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm text-white truncate">{post.topic}</p>
                                         <p className="text-xs text-gray-500 mt-0.5">
@@ -83,7 +91,7 @@ export default async function DashboardHomePage() {
                                         </p>
                                     </div>
                                     <StatusBadge status={post.status} />
-                                </div>
+                                </Link>
                             </li>
                         ))}
                     </ul>
