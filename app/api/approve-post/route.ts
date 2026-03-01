@@ -76,8 +76,7 @@ Return ONLY the JSON array.`;
         const { error: dbError } = await supabase
             .from('posts')
             .update({ status: 'Approved', final_text: finalText })
-            .eq('id', postId)
-            .eq('user_id', user.id);
+            .eq('id', postId);
 
         if (dbError) throw dbError;
 

@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getActiveProjectId } from '@/lib/project-context';
+import TeamSection from './TeamSection';
 
 export default async function SettingsPage({
     searchParams,
@@ -8,6 +11,7 @@ export default async function SettingsPage({
 }) {
     const supabase = await createClient();
     const params = await searchParams;
+    const projectId = await getActiveProjectId();
 
     const { data: creds } = await supabase
         .from('linkedin_credentials')
@@ -17,11 +21,36 @@ export default async function SettingsPage({
     const isConnected = !!creds;
     const isExpired = creds?.expires_at ? new Date(creds.expires_at) < new Date() : false;
 
+    // Fetch team members for current project
+    let members: { email: string; role: string; joined_at: string }[] = [];
+    if (projectId) {
+        const { data: memberships } = await supabase
+            .from('project_members')
+            .select('user_id, role, joined_at')
+            .eq('project_id', projectId);
+
+        if (memberships && memberships.length > 0) {
+            // Use service role key to look up user emails from auth.users
+            const adminClient = createServiceClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+            const { data: { users } } = await adminClient.auth.admin.listUsers();
+            const userMap = new Map((users ?? []).map(u => [u.id, u.email ?? u.user_metadata?.full_name ?? 'Unknown']));
+
+            members = memberships.map(m => ({
+                email: userMap.get(m.user_id) ?? m.user_id.substring(0, 8) + '...',
+                role: m.role,
+                joined_at: m.joined_at,
+            }));
+        }
+    }
+
     return (
         <div className="p-8 max-w-2xl">
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-white">Settings</h1>
-                <p className="text-gray-400 text-sm mt-1">Configure your integrations</p>
+                <p className="text-gray-400 text-sm mt-1">Configure your integrations and team</p>
             </div>
 
             {/* Feedback banners */}
@@ -34,6 +63,11 @@ export default async function SettingsPage({
                 <div className="mb-6 p-4 rounded-xl bg-red-900/40 border border-red-700 text-red-300 text-sm">
                     ❌ LinkedIn connection failed: {params.linkedin_error}. Please try again.
                 </div>
+            )}
+
+            {/* Team Card */}
+            {projectId && (
+                <TeamSection projectId={projectId} members={members} />
             )}
 
             {/* LinkedIn Card */}

@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
             status: 'Scheduled',
             target_timestamp: targetTimestamp,
         })
-        .eq('id', postId)
-        .eq('user_id', user.id);
+        .eq('id', postId);
 
     if (error) {
         console.error('[schedule-post] DB error:', error);

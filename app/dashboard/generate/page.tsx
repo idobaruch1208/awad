@@ -402,10 +402,11 @@ export default function GeneratePage() {
     const handleTopicConfirm = async (topic: string) => {
         setStage('generating');
         try {
+            const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
             const res = await fetch('/api/generate-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic }),
+                body: JSON.stringify({ topic, projectId }),
             });
             const data = await res.json() as DraftData & { error?: string };
             if (data.error) {

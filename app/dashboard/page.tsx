@@ -2,8 +2,15 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import StatusBadge from '@/components/StatusBadge';
 import type { Post } from '@/lib/types';
+import { getActiveProjectId } from '@/lib/project-context';
+import { redirect } from 'next/navigation';
 
 export default async function DashboardHomePage() {
+    const projectId = await getActiveProjectId();
+    if (!projectId) {
+        redirect('/dashboard/projects');
+    }
+
     const supabase = await createClient();
 
     const { data: posts } = await supabase

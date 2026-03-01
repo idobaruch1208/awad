@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { topic } = body as { topic: string };
+    const { topic, projectId } = body as { topic: string; projectId?: string };
 
     if (!topic?.trim()) {
         return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
             .from('posts')
             .insert({
                 user_id: user.id,
+                project_id: projectId || null,
                 topic,
                 original_draft: postText,
                 final_text: postText,

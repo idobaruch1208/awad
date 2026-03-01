@@ -5,6 +5,7 @@ export type PostStatus = 'Draft' | 'Reviewing' | 'Approved' | 'Scheduled' | 'Pub
 export interface Post {
     id: string;
     user_id: string;
+    project_id: string | null;
     topic: string;
     original_draft: string | null;
     final_text: string | null;
@@ -17,6 +18,30 @@ export interface Post {
     updated_at: string;
 }
 
+export interface Project {
+    id: string;
+    name: string;
+    owner_id: string;
+    created_at: string;
+}
+
+export interface ProjectMember {
+    id: string;
+    project_id: string;
+    user_id: string;
+    role: 'owner' | 'member';
+    joined_at: string;
+}
+
+export interface Invite {
+    id: string;
+    project_id: string;
+    token: string;
+    created_by: string;
+    created_at: string;
+    expires_at: string;
+}
+
 export interface LinkedInCredentials {
     id: string;
     organization_urn: string;
@@ -24,3 +49,4 @@ export interface LinkedInCredentials {
     refresh_token: string | null;
     expires_at: string | null;
 }
+

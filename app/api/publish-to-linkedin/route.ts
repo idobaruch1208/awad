@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
         .from('posts')
         .select('*')
         .eq('id', postId)
-        .eq('user_id', user.id)
         .single();
 
     if (postError || !post) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
