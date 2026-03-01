@@ -16,6 +16,7 @@ export default async function DashboardHomePage() {
     const { data: posts } = await supabase
         .from('posts')
         .select('*')
+        .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
     const allPosts: Post[] = posts ?? [];

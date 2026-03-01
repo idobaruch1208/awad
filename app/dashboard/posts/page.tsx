@@ -3,6 +3,8 @@ import StatusBadge from '@/components/StatusBadge';
 import Link from 'next/link';
 import type { Post, PostStatus } from '@/lib/types';
 import { format } from 'date-fns';
+import { getActiveProjectId } from '@/lib/project-context';
+import { redirect } from 'next/navigation';
 
 type FilterType = 'all' | 'published' | 'scheduled' | 'in-progress';
 
@@ -18,16 +20,22 @@ export default async function PostsPage({
 }: {
     searchParams: Promise<{ filter?: string }>;
 }) {
+    const projectId = await getActiveProjectId();
+    if (!projectId) {
+        redirect('/dashboard/projects');
+    }
+
     const params = await searchParams;
     const activeFilter = (params.filter as FilterType) || 'all';
     const filterConfig = FILTER_CONFIG[activeFilter] ?? FILTER_CONFIG.all;
 
     const supabase = await createClient();
 
-    // Build query with filter
+    // Build query with filter — scoped to active project
     let query = supabase
         .from('posts')
         .select('*')
+        .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
     if (filterConfig.statuses) {
@@ -62,8 +70,8 @@ export default async function PostsPage({
                         key={key}
                         href={key === 'all' ? '/dashboard/posts' : `/dashboard/posts?filter=${key}`}
                         className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${activeFilter === key
-                                ? 'bg-violet-600 text-white shadow-md shadow-violet-900/30'
-                                : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700/60 hover:text-gray-300 border border-gray-700/50'
+                            ? 'bg-violet-600 text-white shadow-md shadow-violet-900/30'
+                            : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700/60 hover:text-gray-300 border border-gray-700/50'
                             }`}
                     >
                         {config.label}
