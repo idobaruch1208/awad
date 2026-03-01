@@ -7,7 +7,7 @@ import { withRetry } from '@/lib/retry';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function buildSystemPrompt(topic: string, approvedPosts: string[], styleLessons: string[]): string {
+function buildSystemPrompt(topic: string, approvedPosts: string[], styleLessons: string[], language: string): string {
     const postsContext = approvedPosts.length > 0
         ? `\n\nHere are examples of previously approved AWAD LinkedIn posts (use these as style reference):\n${approvedPosts.map((p, i) => `--- Post ${i + 1} ---\n${p}`).join('\n\n')}`
         : '';
@@ -15,6 +15,10 @@ function buildSystemPrompt(topic: string, approvedPosts: string[], styleLessons:
     const lessonsContext = styleLessons.length > 0
         ? `\n\nStyle guidelines learned from past edits:\n${styleLessons.join('\n')}`
         : '';
+
+    const langInstruction = language === 'he'
+        ? '\n\nIMPORTANT: Write the ENTIRE post in Hebrew (עברית). The post content, hashtags, and call-to-action must all be in Hebrew. Use right-to-left text direction naturally.'
+        : '\n\nWrite the post in English.';
 
     return `You are a LinkedIn content writer for AWAD, an Israeli startup law firm and business advisory company. 
 AWAD helps startup founders with legal and business challenges: incorporation, term sheets, fundraising, employment agreements, IP protection, and regulatory compliance.
@@ -29,7 +33,7 @@ Brand Voice Guidelines:
 - Include relevant emojis sparingly (1-3 max)
 - End with a clear call-to-action or thought-provoking question
 - Max 3,000 characters, ideally 800-1,200 characters
-- Include 3-5 relevant hashtags at the end${postsContext}${lessonsContext}
+- Include 3-5 relevant hashtags at the end${langInstruction}${postsContext}${lessonsContext}
 
 Topic to write about: ${topic}
 
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { topic, projectId } = body as { topic: string; projectId?: string };
+    const { topic, projectId, language } = body as { topic: string; projectId?: string; language?: string };
 
     if (!topic?.trim()) {
         return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
@@ -68,7 +72,7 @@ export async function POST(request: NextRequest) {
         const [postText, imageUrl] = await Promise.all([
             withRetry(async () => {
                 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-                const prompt = buildSystemPrompt(topic, approvedPosts, styleLessons);
+                const prompt = buildSystemPrompt(topic, approvedPosts, styleLessons, language || 'en');
                 const result = await model.generateContent(prompt);
                 return result.response.text().trim();
             }),

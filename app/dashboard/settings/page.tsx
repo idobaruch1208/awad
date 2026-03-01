@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getActiveProjectId } from '@/lib/project-context';
 import TeamSection from './TeamSection';
+import LanguageSelector from './LanguageSelector';
 
 export default async function SettingsPage({
     searchParams,
@@ -64,6 +65,9 @@ export default async function SettingsPage({
                     ❌ LinkedIn connection failed: {params.linkedin_error}. Please try again.
                 </div>
             )}
+
+            {/* Language Selector */}
+            <LanguageSelector />
 
             {/* Team Card */}
             {projectId && (

@@ -37,7 +37,8 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
     const [selected, setSelected] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
+        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: lang }) })
             .then((r) => r.json())
             .then((d) => setTopics(d.topics ?? []))
             .catch(() => setTopics([]))
@@ -403,10 +404,11 @@ export default function GeneratePage() {
         setStage('generating');
         try {
             const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
+            const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
             const res = await fetch('/api/generate-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic, projectId }),
+                body: JSON.stringify({ topic, projectId, language: lang }),
             });
             const data = await res.json() as DraftData & { error?: string };
             if (data.error) {
