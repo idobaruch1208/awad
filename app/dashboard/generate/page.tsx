@@ -195,6 +195,8 @@ function PostEditorStage({
         finally { setRegeneratingImg(false); }
     };
 
+    const [styleLessons, setStyleLessons] = useState<string[]>([]);
+
     const handleApprove = async () => {
         setApproving(true);
         try {
@@ -203,8 +205,11 @@ function PostEditorStage({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ postId: draft.postId, originalDraft: draft.originalDraft, finalText: text }),
             });
-            const data = await res.json() as { success?: boolean; error?: string };
-            if (data.success) setShowPublishModal(true);
+            const data = await res.json() as { success?: boolean; styleLessons?: string[]; error?: string };
+            if (data.success) {
+                setStyleLessons(data.styleLessons ?? []);
+                setShowPublishModal(true);
+            }
             else onToast(data.error ?? 'Approval failed', 'error');
         } catch { onToast('Network error', 'error'); }
         finally { setApproving(false); }
@@ -247,6 +252,11 @@ function PostEditorStage({
             } else onToast(data.error ?? 'Scheduling failed', 'error');
         } catch { onToast('Network error', 'error'); }
         finally { setScheduling(false); }
+    };
+
+    const handleSaveOnly = () => {
+        onToast('Post saved as approved ✅', 'success');
+        setTimeout(() => router.push('/dashboard/posts'), 1000);
     };
 
     return (
@@ -339,9 +349,29 @@ function PostEditorStage({
             {/* Publish Modal */}
             {showPublishModal && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="glass rounded-2xl p-8 max-w-md w-full">
+                    <div className="glass rounded-2xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <h2 className="text-xl font-bold text-white mb-2">Post Approved! 🎉</h2>
-                        <p className="text-gray-400 text-sm mb-6">When would you like to publish this post?</p>
+
+                        {/* AI Learnings */}
+                        {styleLessons.length > 0 && (
+                            <div className="mb-6 rounded-xl bg-emerald-950/30 border border-emerald-800/50 p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-lg">🧠</span>
+                                    <h3 className="text-sm font-semibold text-emerald-300">What I learned from your edits</h3>
+                                </div>
+                                <ul className="space-y-2">
+                                    {styleLessons.map((lesson, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm text-emerald-200/80">
+                                            <span className="text-emerald-400 mt-0.5 flex-shrink-0">→</span>
+                                            {lesson}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="text-xs text-emerald-600 mt-3">These insights will be applied to future posts</p>
+                            </div>
+                        )}
+
+                        <p className="text-gray-400 text-sm mb-6">What would you like to do with this post?</p>
 
                         <div className="space-y-4">
                             <button
@@ -383,6 +413,19 @@ function PostEditorStage({
                                     {scheduling ? 'Scheduling...' : 'Schedule Post'}
                                 </button>
                             </div>
+
+                            <div className="relative flex items-center gap-3">
+                                <hr className="flex-1 border-gray-700" />
+                                <span className="text-xs text-gray-500">or</span>
+                                <hr className="flex-1 border-gray-700" />
+                            </div>
+
+                            <button
+                                onClick={handleSaveOnly}
+                                className="btn-secondary w-full justify-center py-3"
+                            >
+                                💾 Save Without Publishing
+                            </button>
 
                             <button
                                 onClick={() => setShowPublishModal(false)}
