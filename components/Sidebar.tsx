@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react';
 
 const navLinks = [
     {
@@ -45,6 +46,7 @@ export default function Sidebar({
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -52,8 +54,10 @@ export default function Sidebar({
         router.refresh();
     };
 
-    return (
-        <aside className="w-64 flex flex-col border-r border-gray-800 bg-gray-950 flex-shrink-0">
+    const closeMobile = () => setMobileOpen(false);
+
+    const sidebarContent = (
+        <>
             {/* Logo + Project */}
             <div className="px-6 py-6 border-b border-gray-800">
                 <div className="flex items-center gap-3">
@@ -72,6 +76,7 @@ export default function Sidebar({
                 {/* Switch Project */}
                 <Link
                     href="/dashboard/projects"
+                    onClick={closeMobile}
                     className="mt-3 flex items-center gap-2 text-xs text-gray-500 hover:text-violet-400 transition-colors"
                 >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -89,6 +94,7 @@ export default function Sidebar({
                         <Link
                             key={link.href}
                             href={link.href}
+                            onClick={closeMobile}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
                                 ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
                                 : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
@@ -116,6 +122,52 @@ export default function Sidebar({
                     Sign out
                 </button>
             </div>
-        </aside>
+        </>
+    );
+
+    return (
+        <>
+            {/* Mobile hamburger button */}
+            <button
+                onClick={() => setMobileOpen(true)}
+                className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-xl bg-gray-900/90 border border-gray-700 text-gray-300 hover:text-white backdrop-blur-sm"
+                aria-label="Open menu"
+            >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
+            {/* Mobile overlay */}
+            {mobileOpen && (
+                <div
+                    className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                    onClick={closeMobile}
+                />
+            )}
+
+            {/* Sidebar — desktop: static, mobile: slide-in overlay */}
+            <aside
+                className={`
+                    w-64 flex flex-col border-r border-gray-800 bg-gray-950 flex-shrink-0
+                    fixed md:static inset-y-0 left-0 z-50
+                    transition-transform duration-300 ease-in-out
+                    ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                `}
+            >
+                {/* Mobile close button */}
+                <button
+                    onClick={closeMobile}
+                    className="md:hidden absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                    aria-label="Close menu"
+                >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                {sidebarContent}
+            </aside>
+        </>
     );
 }

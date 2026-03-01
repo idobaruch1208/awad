@@ -35,9 +35,11 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
     const [loadingTopics, setLoadingTopics] = useState(true);
     const [customTopic, setCustomTopic] = useState('');
     const [selected, setSelected] = useState<string | null>(null);
+    const [isRtl, setIsRtl] = useState(false);
 
     useEffect(() => {
         const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
+        setIsRtl(lang === 'he');
         fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: lang }) })
             .then((r) => r.json())
             .then((d) => setTopics(d.topics ?? []))
@@ -72,7 +74,8 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
                             <button
                                 key={topic}
                                 onClick={() => { setSelected(topic); setCustomTopic(''); }}
-                                className={`text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ${selected === topic ? 'border-violet-500 bg-violet-600/20 text-violet-200' : 'border-gray-700 bg-gray-900/60 text-gray-300 hover:border-gray-500 hover:bg-gray-800/60'}`}
+                                dir={isRtl ? 'rtl' : 'ltr'}
+                                className={`${isRtl ? 'text-right' : 'text-left'} px-4 py-3 rounded-xl border text-sm transition-all duration-200 ${selected === topic ? 'border-violet-500 bg-violet-600/20 text-violet-200' : 'border-gray-700 bg-gray-900/60 text-gray-300 hover:border-gray-500 hover:bg-gray-800/60'}`}
                             >
                                 {topic}
                             </button>
@@ -274,6 +277,7 @@ function PostEditorStage({
                         <textarea
                             value={text}
                             onChange={(e) => setText(e.target.value)}
+                            dir="auto"
                             className="input-field resize-none font-mono text-xs leading-relaxed"
                             rows={16}
                         />
@@ -425,7 +429,7 @@ export default function GeneratePage() {
     };
 
     return (
-        <div className="p-8 min-h-full">
+        <div className="p-4 sm:p-8 pt-16 md:pt-8 min-h-full">
             {stage === 'topic-select' && <TopicSelectionStage onTopicConfirm={handleTopicConfirm} />}
             {stage === 'generating' && <GeneratingStage />}
             {stage === 'editing' && draft && (

@@ -27,7 +27,7 @@ export default async function PostDetailPage({
     const charCount = typedPost.final_text?.length ?? 0;
 
     return (
-        <div className="p-8 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-8 pt-16 md:pt-8 max-w-4xl mx-auto">
             {/* Back Navigation */}
             <Link
                 href="/dashboard/posts"
@@ -62,7 +62,7 @@ export default async function PostDetailPage({
                             <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
                         </div>
                         {typedPost.final_text ? (
-                            <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                            <div dir="auto" className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
                                 {typedPost.final_text}
                             </div>
                         ) : (
