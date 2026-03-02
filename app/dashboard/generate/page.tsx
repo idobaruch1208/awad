@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type Stage = 'topic-select' | 'generating' | 'editing';
+type Stage = 'topic-select' | 'intent-select' | 'generating' | 'editing';
 
 interface DraftData {
     postId: string;
@@ -84,14 +84,21 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
                 )}
             </div>
 
-            {/* Custom Input */}
+            {/* Custom Input — auto-expanding textarea */}
             <div className="mb-8">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Or enter your own</p>
-                <input
-                    className="input-field"
-                    placeholder="Paste a URL or type a custom topic..."
+                <textarea
+                    className="input-field resize-none overflow-hidden"
+                    placeholder="Paste a URL, type a custom topic, or paste an existing post..."
+                    dir="auto"
+                    rows={2}
                     value={customTopic}
-                    onChange={(e) => { setCustomTopic(e.target.value); setSelected(null); }}
+                    onChange={(e) => {
+                        setCustomTopic(e.target.value); setSelected(null);
+                        // Auto-expand
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                    }}
                 />
             </div>
 
@@ -103,7 +110,7 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Generate Post
+                {customTopic.trim().length > 100 ? 'Next — Choose Action' : 'Generate Post'}
             </button>
         </div>
     );
@@ -444,13 +451,96 @@ function PostEditorStage({
     );
 }
 
+// ─── Intent Selection (for pasted content) ───────────────────────────────────
+const INTENT_PRESETS = [
+    { id: 'rewrite', emoji: '📝', label: 'Rewrite in AWAD\'s voice', description: 'Transform this into a professional AWAD-style LinkedIn post' },
+    { id: 'followup', emoji: '🔄', label: 'Write a follow-up post', description: 'Create a new post that builds on this content' },
+    { id: 'shorten', emoji: '✂️', label: 'Make it shorter & punchier', description: 'Condense this into a concise, high-impact post' },
+    { id: 'expand', emoji: '📖', label: 'Expand with more detail', description: 'Add depth, examples, and more value to this content' },
+];
+
+function IntentSelectionStage({
+    sourceText,
+    onConfirm,
+    onBack,
+}: {
+    sourceText: string;
+    onConfirm: (intent: string, sourceText: string) => void;
+    onBack: () => void;
+}) {
+    const [customIntent, setCustomIntent] = useState('');
+    const preview = sourceText.slice(0, 150) + (sourceText.length > 150 ? '...' : '');
+
+    return (
+        <div className="max-w-2xl mx-auto">
+            <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-violet-400 transition-colors mb-6">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+            </button>
+
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-white mb-1">What should I do with this?</h1>
+                <p className="text-gray-400 text-sm">You pasted some content. Choose an action or tell me what you&apos;d like.</p>
+            </div>
+
+            {/* Preview of pasted content */}
+            <div dir="auto" className="glass rounded-xl p-4 mb-6 text-sm text-gray-400 leading-relaxed border-l-2 border-violet-500/50">
+                {preview}
+            </div>
+
+            {/* Preset actions */}
+            <div className="space-y-3 mb-6">
+                {INTENT_PRESETS.map((preset) => (
+                    <button
+                        key={preset.id}
+                        onClick={() => onConfirm(preset.label, sourceText)}
+                        className="w-full text-left glass rounded-xl p-4 hover:bg-gray-800/60 hover:border-violet-500/30 border border-transparent transition-all duration-200 group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl">{preset.emoji}</span>
+                            <div>
+                                <div className="text-sm font-medium text-white group-hover:text-violet-300 transition-colors">{preset.label}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">{preset.description}</div>
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            {/* Custom instruction */}
+            <div className="mb-4">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Or tell me what you&apos;d like</p>
+                <div className="flex gap-2">
+                    <input
+                        className="input-field flex-1"
+                        placeholder='e.g. "Turn this into 3 short posts", "Add a call to action"'
+                        value={customIntent}
+                        onChange={(e) => setCustomIntent(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && customIntent.trim() && onConfirm(customIntent, sourceText)}
+                    />
+                    <button
+                        onClick={() => onConfirm(customIntent, sourceText)}
+                        disabled={!customIntent.trim()}
+                        className="btn-primary px-6 flex-shrink-0"
+                    >
+                        Go
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main Generate Page ───────────────────────────────────────────────────────
 export default function GeneratePage() {
     const [stage, setStage] = useState<Stage>('topic-select');
     const [draft, setDraft] = useState<DraftData | null>(null);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [pendingSourceText, setPendingSourceText] = useState('');
 
-    const handleTopicConfirm = async (topic: string) => {
+    const handleTopicConfirm = useCallback(async (topic: string, intent?: string, sourceText?: string) => {
         setStage('generating');
         try {
             const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
@@ -458,7 +548,7 @@ export default function GeneratePage() {
             const res = await fetch('/api/generate-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic, projectId, language: lang }),
+                body: JSON.stringify({ topic, projectId, language: lang, intent, sourceText }),
             });
             const data = await res.json() as DraftData & { error?: string };
             if (data.error) {
@@ -472,11 +562,32 @@ export default function GeneratePage() {
             setToast({ message: 'Failed to generate draft. Please try again.', type: 'error' });
             setStage('topic-select');
         }
+    }, []);
+
+    const handleTopicFromSelection = (topic: string) => {
+        // If long text pasted, go to intent selection first
+        if (topic.length > 100) {
+            setPendingSourceText(topic);
+            setStage('intent-select');
+        } else {
+            handleTopicConfirm(topic);
+        }
+    };
+
+    const handleIntentConfirm = (intent: string, sourceText: string) => {
+        handleTopicConfirm(intent, intent, sourceText);
     };
 
     return (
         <div className="p-4 sm:p-8 pt-16 md:pt-8 min-h-full">
-            {stage === 'topic-select' && <TopicSelectionStage onTopicConfirm={handleTopicConfirm} />}
+            {stage === 'topic-select' && <TopicSelectionStage onTopicConfirm={handleTopicFromSelection} />}
+            {stage === 'intent-select' && (
+                <IntentSelectionStage
+                    sourceText={pendingSourceText}
+                    onConfirm={handleIntentConfirm}
+                    onBack={() => setStage('topic-select')}
+                />
+            )}
             {stage === 'generating' && <GeneratingStage />}
             {stage === 'editing' && draft && (
                 <PostEditorStage draft={draft} onToast={(msg, type) => setToast({ message: msg, type })} />

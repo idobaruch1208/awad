@@ -62,7 +62,7 @@ export default async function PostDetailPage({
                             <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
                         </div>
                         {typedPost.final_text ? (
-                            <div dir="auto" className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                            <div dir="auto" className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap max-h-[500px] overflow-y-auto">
                                 {typedPost.final_text}
                             </div>
                         ) : (

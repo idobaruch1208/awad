@@ -46,7 +46,13 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { topic, projectId, language } = body as { topic: string; projectId?: string; language?: string };
+    const { topic, projectId, language, intent, sourceText } = body as {
+        topic: string;
+        projectId?: string;
+        language?: string;
+        intent?: string;
+        sourceText?: string;
+    };
 
     if (!topic?.trim()) {
         return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
@@ -72,8 +78,16 @@ export async function POST(request: NextRequest) {
         const [postText, imageUrl] = await Promise.all([
             withRetry(async () => {
                 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-                const prompt = buildSystemPrompt(topic, approvedPosts, styleLessons, language || 'en');
-                const result = await model.generateContent(prompt);
+                const basePrompt = buildSystemPrompt(
+                    intent && sourceText ? intent : topic,
+                    approvedPosts,
+                    styleLessons,
+                    language || 'en'
+                );
+                const finalPrompt = intent && sourceText
+                    ? `${basePrompt}\n\nHere is the original content the user provided:\n---\n${sourceText}\n---\n\nUser's instruction: ${intent}\n\nBased on the original content and the user's instruction, write a LinkedIn post. Return ONLY the post content.`
+                    : basePrompt;
+                const result = await model.generateContent(finalPrompt);
                 return result.response.text().trim();
             }),
             generateImage(topic),
