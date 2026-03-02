@@ -262,7 +262,10 @@ function PostEditorStage({
     return (
         <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-white">Review & Refine</h1>
+                <div>
+                    <h1 className="text-2xl font-bold text-white">Review & Refine</h1>
+                    <p className="text-gray-400 text-sm mt-1">Edit the post directly in the text box below, or use <span className="text-violet-400">✨ Refine with AI</span> to ask the AI to update it for you.</p>
+                </div>
                 <button
                     onClick={handleApprove}
                     disabled={approving || charCount > charLimit}
