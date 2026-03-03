@@ -452,7 +452,15 @@ function PostEditorStage({
 }
 
 // ─── Intent Selection (for pasted content) ───────────────────────────────────
-const INTENT_PRESETS = [
+type Intent = {
+    id: string;
+    emoji: string;
+    label: string;
+    description: string;
+};
+
+// Fallback presets in case API fails
+const FALLBACK_INTENTS: Intent[] = [
     { id: 'rewrite', emoji: '📝', label: 'Rewrite in AWAD\'s voice', description: 'Transform this into a professional AWAD-style LinkedIn post' },
     { id: 'followup', emoji: '🔄', label: 'Write a follow-up post', description: 'Create a new post that builds on this content' },
     { id: 'shorten', emoji: '✂️', label: 'Make it shorter & punchier', description: 'Condense this into a concise, high-impact post' },
@@ -460,7 +468,7 @@ const INTENT_PRESETS = [
 ];
 
 function IntentSelectionStage({
-    sourceText,
+    sourceText: initialSourceText,
     onConfirm,
     onBack,
 }: {
@@ -468,7 +476,41 @@ function IntentSelectionStage({
     onConfirm: (intent: string, sourceText: string) => void;
     onBack: () => void;
 }) {
+    const [sourceText, setSourceText] = useState(initialSourceText);
     const [customIntent, setCustomIntent] = useState('');
+    const [intents, setIntents] = useState<Intent[]>([]);
+    const [loadingIntents, setLoadingIntents] = useState(true);
+    const [isEditingSource, setIsEditingSource] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+        const fetchIntents = async () => {
+            try {
+                const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
+                const res = await fetch('/api/generate-intents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourceText: initialSourceText, language: lang }),
+                });
+                const data = await res.json();
+                if (mounted) {
+                    if (data.intents && Array.isArray(data.intents)) {
+                        setIntents(data.intents);
+                    } else {
+                        setIntents(FALLBACK_INTENTS);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load dynamic intents:', e);
+                if (mounted) setIntents(FALLBACK_INTENTS);
+            } finally {
+                if (mounted) setLoadingIntents(false);
+            }
+        };
+        fetchIntents();
+        return () => { mounted = false; };
+    }, [initialSourceText]);
+
     const preview = sourceText.slice(0, 150) + (sourceText.length > 150 ? '...' : '');
 
     return (
@@ -486,27 +528,68 @@ function IntentSelectionStage({
             </div>
 
             {/* Preview of pasted content */}
-            <div dir="auto" className="glass rounded-xl p-4 mb-6 text-sm text-gray-400 leading-relaxed border-l-2 border-violet-500/50">
+            <div
+                onClick={() => setIsEditingSource(true)}
+                dir="auto"
+                className="glass rounded-xl p-4 mb-6 text-sm text-gray-400 leading-relaxed border-l-2 border-violet-500/50 cursor-pointer hover:bg-gray-800/60 transition-colors group relative"
+            >
                 {preview}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl backdrop-blur-[1px]">
+                    <span className="text-white text-xs font-medium bg-black/80 px-4 py-2 rounded-full shadow-lg">Click to read / edit full text</span>
+                </div>
             </div>
+
+            {/* Editing Modal */}
+            {isEditingSource && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="glass rounded-2xl p-6 w-full max-w-3xl flex flex-col max-h-[90vh]">
+                        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                            <h2 className="text-lg font-bold text-white">Edit Source Text</h2>
+                            <button onClick={() => setIsEditingSource(false)} className="text-gray-400 hover:text-white transition-colors">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <textarea
+                            dir="auto"
+                            value={sourceText}
+                            onChange={(e) => setSourceText(e.target.value)}
+                            className="input-field flex-1 font-mono text-sm leading-relaxed mb-4 resize-none min-h-[50vh]"
+                            placeholder="Enter the source text here..."
+                        />
+                        <div className="flex justify-end gap-3 flex-shrink-0">
+                            <button onClick={() => setIsEditingSource(false)} className="btn-primary px-6 py-2">Save & Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Preset actions */}
             <div className="space-y-3 mb-6">
-                {INTENT_PRESETS.map((preset) => (
-                    <button
-                        key={preset.id}
-                        onClick={() => onConfirm(preset.label, sourceText)}
-                        className="w-full text-left glass rounded-xl p-4 hover:bg-gray-800/60 hover:border-violet-500/30 border border-transparent transition-all duration-200 group"
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className="text-xl">{preset.emoji}</span>
-                            <div>
-                                <div className="text-sm font-medium text-white group-hover:text-violet-300 transition-colors">{preset.label}</div>
-                                <div className="text-xs text-gray-500 mt-0.5">{preset.description}</div>
+                {loadingIntents ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="w-full glass rounded-xl p-4 animate-pulse flex items-center gap-4 border border-transparent">
+                            <div className="w-8 h-8 bg-gray-800 rounded-full flex-shrink-0"></div>
+                            <div className="space-y-2 flex-1">
+                                <div className="h-4 bg-gray-800 rounded w-1/3"></div>
+                                <div className="h-3 bg-gray-800 rounded w-2/3"></div>
                             </div>
                         </div>
-                    </button>
-                ))}
+                    ))
+                ) : (
+                    intents.map((preset) => (
+                        <button
+                            key={preset.id}
+                            onClick={() => onConfirm(preset.label, sourceText)}
+                            className="w-full text-left glass rounded-xl p-4 hover:bg-gray-800/60 hover:border-violet-500/30 border border-transparent transition-all duration-200 group flex items-center gap-4"
+                        >
+                            <span className="text-2xl flex-shrink-0">{preset.emoji}</span>
+                            <div>
+                                <div className="text-sm font-medium text-white group-hover:text-violet-300 transition-colors">{preset.label}</div>
+                                <div className="text-xs text-gray-500 mt-0.5" dir="auto">{preset.description}</div>
+                            </div>
+                        </button>
+                    ))
+                )}
             </div>
 
             {/* Custom instruction */}
