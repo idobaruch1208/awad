@@ -5,6 +5,8 @@ import { embed } from '@/lib/embed';
 import { query } from '@/lib/vectordb';
 import { withRetry } from '@/lib/retry';
 
+export const maxDuration = 60; // Prevent Vercel timeouts
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 function buildSystemPrompt(topic: string, approvedPosts: string[], styleLessons: string[], language: string): string {

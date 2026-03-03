@@ -39,8 +39,9 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
 
     useEffect(() => {
         const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
+        const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
         setIsRtl(lang === 'he');
-        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: lang }) })
+        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: lang, projectId }) })
             .then((r) => r.json())
             .then((d) => setTopics(d.topics ?? []))
             .catch(() => setTopics([]))
