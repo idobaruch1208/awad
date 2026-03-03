@@ -8,14 +8,14 @@ export const maxDuration = 60; // Prevent Vercel timeouts
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 function buildTopicsPrompt(language: string, recentTopics: string[]): string {
-    const avoidContext = recentTopics.length > 0
-        ? `\n\nCRITICAL: Do NOT suggest any topics similar to these recently covered topics:\n${recentTopics.map(t => `- ${t}`).join('\n')}`
+    const inspirationContext = recentTopics.length > 0
+        ? `\n\nHere are some topics the user recently wrote about:\n${recentTopics.map(t => `- ${t}`).join('\n')}\nCRITICAL: Analyze these past topics to understand the user's specific niche and writing interests. Generate 4 NEW topics that are highly relevant to this specific niche, building upon or complementing these themes without repeating the exact same titles.`
         : '';
 
     if (language === 'he') {
         return `You are a content strategist for AWAD, an Israeli startup law firm and business advisory company.
 Generate exactly 4 compelling LinkedIn post topics in HEBREW (עברית) that AWAD's audience (startup founders, entrepreneurs, investors) would find valuable.
-Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem, business incorporation.${avoidContext}
+Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem, business incorporation.${inspirationContext}
 
 Return a JSON array of strings with exactly 4 topic strings in Hebrew. Example format:
 ["נושא 1 כאן", "נושא 2 כאן", "נושא 3 כאן", "נושא 4 כאן"]
@@ -25,7 +25,7 @@ Return ONLY the JSON array, no other text.`;
 
     return `You are a content strategist for AWAD, an Israeli startup law firm and business advisory company.
 Generate exactly 4 compelling LinkedIn post topics that AWAD's audience (startup founders, entrepreneurs, investors) would find valuable.
-Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem, business incorporation.${avoidContext}
+Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem, business incorporation.${inspirationContext}
 
 Return a JSON array of strings with exactly 4 topic strings. Example format:
 ["Topic 1 here", "Topic 2 here", "Topic 3 here", "Topic 4 here"]
