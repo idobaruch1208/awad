@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import StatusBadge from '@/components/StatusBadge';
+import CopyButton from '@/components/CopyButton';
 import Link from 'next/link';
 import type { Post } from '@/lib/types';
 import { format } from 'date-fns';
@@ -26,6 +27,11 @@ export default async function PostDetailPage({
     const typedPost = post as Post;
     const charCount = typedPost.final_text?.length ?? 0;
 
+    // Truncate topic if it's too long (e.g. pasted source text)
+    const displayTopic = typedPost.topic.length > 120
+        ? typedPost.topic.slice(0, 120) + '...'
+        : typedPost.topic;
+
     return (
         <div className="p-4 sm:p-8 pt-16 md:pt-8 max-w-4xl mx-auto">
             {/* Back Navigation */}
@@ -42,7 +48,7 @@ export default async function PostDetailPage({
             {/* Header */}
             <div className="flex items-start justify-between gap-4 mb-8">
                 <div className="flex-1 min-w-0">
-                    <h1 className="text-2xl font-bold text-white mb-2">{typedPost.topic}</h1>
+                    <h1 className="text-2xl font-bold text-white mb-2" dir="auto">{displayTopic}</h1>
                     <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span>Created {format(new Date(typedPost.created_at), 'MMM d, yyyy · h:mm a')}</span>
                         {typedPost.updated_at !== typedPost.created_at && (
@@ -59,7 +65,10 @@ export default async function PostDetailPage({
                     <div className="glass rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-sm font-semibold text-gray-300">Post Content</h2>
-                            <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
+                                {typedPost.final_text && <CopyButton text={typedPost.final_text} />}
+                            </div>
                         </div>
                         {typedPost.final_text ? (
                             <div dir="auto" className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap max-h-[500px] overflow-y-auto">
