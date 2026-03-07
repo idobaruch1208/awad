@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { PostStatus } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { statusConfig } from './StatusBadge';
@@ -9,6 +9,11 @@ export default function StatusSelector({ postId, initialStatus }: { postId: stri
     const [status, setStatus] = useState<PostStatus>(initialStatus);
     const [isUpdating, setIsUpdating] = useState(false);
     const router = useRouter();
+
+    // Sync state if server data changes (e.g., from another selector via router.refresh)
+    useEffect(() => {
+        setStatus(initialStatus);
+    }, [initialStatus]);
 
     const handleStatusChange = async (newStatus: PostStatus) => {
         setIsUpdating(true);
