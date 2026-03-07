@@ -1,6 +1,6 @@
 import type { PostStatus } from '@/lib/types';
 
-const statusConfig: Record<PostStatus, { label: string; className: string }> = {
+export const statusConfig: Record<PostStatus, { label: string; className: string }> = {
     Draft: { label: 'Draft', className: 'badge-draft' },
     Reviewing: { label: 'Reviewing', className: 'badge-reviewing' },
     Approved: { label: 'Approved', className: 'badge-approved' },

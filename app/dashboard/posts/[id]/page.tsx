@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import StatusBadge from '@/components/StatusBadge';
+import StatusSelector from '@/components/StatusSelector';
 import CopyButton from '@/components/CopyButton';
 import Link from 'next/link';
 import type { Post } from '@/lib/types';
@@ -56,7 +56,7 @@ export default async function PostDetailPage({
                         )}
                     </div>
                 </div>
-                <StatusBadge status={typedPost.status} />
+                <StatusSelector postId={typedPost.id} initialStatus={typedPost.status} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -115,9 +115,9 @@ export default async function PostDetailPage({
                     <div className="glass rounded-2xl p-5">
                         <h3 className="text-sm font-semibold text-gray-300 mb-4">Details</h3>
                         <dl className="space-y-3 text-xs">
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <dt className="text-gray-500">Status</dt>
-                                <dd><StatusBadge status={typedPost.status} /></dd>
+                                <dd><StatusSelector postId={typedPost.id} initialStatus={typedPost.status} /></dd>
                             </div>
                             <div className="flex justify-between border-t border-gray-800 pt-3">
                                 <dt className="text-gray-500">Created</dt>
