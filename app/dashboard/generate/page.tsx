@@ -308,12 +308,22 @@ function PostEditorStage({
                     <div className="glass rounded-2xl p-5">
                         <label className="text-sm font-medium text-gray-300 block mb-3">✨ Refine with AI</label>
                         <div className="flex gap-2">
-                            <input
-                                className="input-field flex-1"
+                            <textarea
+                                className="input-field flex-1 resize-none overflow-hidden"
                                 placeholder='e.g. "Make it shorter", "Add more hashtags"'
                                 value={refineInstruction}
-                                onChange={(e) => setRefineInstruction(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
+                                rows={1}
+                                onChange={(e) => {
+                                    setRefineInstruction(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (refineInstruction.trim()) handleRefine();
+                                    }
+                                }}
                             />
                             <button
                                 onClick={handleRefine}
