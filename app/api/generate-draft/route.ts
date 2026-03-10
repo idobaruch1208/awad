@@ -9,9 +9,9 @@ export const maxDuration = 60; // Prevent Vercel timeouts
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function buildSystemPrompt(topic: string, approvedPosts: string[], styleLessons: string[], language: string): string {
-    const postsContext = approvedPosts.length > 0
-        ? `\n\nHere are examples of previously approved AWAD LinkedIn posts (use these as style reference):\n${approvedPosts.map((p, i) => `--- Post ${i + 1} ---\n${p}`).join('\n\n')}`
+function buildSystemPrompt(topic: string, prioritizedPosts: string, styleLessons: string[], language: string): string {
+    const postsContext = prioritizedPosts
+        ? `\n\nHere are examples of past AWAD LinkedIn posts, prioritized by their success level:\n${prioritizedPosts}\n\nBefore generating new content, analyze the provided historical posts. Treat the 'Published' posts as your absolute baseline for success—mimic their tone, formatting, and structure heavily. Treat the 'Approved' posts as secondary good examples. Base your new suggestions strictly on the patterns found in these prioritized tiers.`
         : '';
 
     const lessonsContext = styleLessons.length > 0
@@ -61,19 +61,45 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        // Step 1 & 2: Try to get RAG context (gracefully skip if embeddings unavailable)
-        let approvedPosts: string[] = [];
+        // Step 1: Fetch historical posts from DB prioritized by status
+        let prioritizedPostsContext = '';
         let styleLessons: string[] = [];
+
         try {
+            let postsQuery = supabase
+                .from('posts')
+                .select('status, final_text')
+                .eq('user_id', user.id)
+                .in('status', ['Published', 'Approved'])
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (projectId) {
+                postsQuery = postsQuery.eq('project_id', projectId);
+            }
+
+            const { data: dbPosts, error: postsError } = await postsQuery;
+
+            if (!postsError && dbPosts && dbPosts.length > 0) {
+                const published = dbPosts.filter(p => p.status === 'Published').map(p => p.final_text).filter(Boolean);
+                const approved = dbPosts.filter(p => p.status === 'Approved').map(p => p.final_text).filter(Boolean);
+
+                const allPrioritized = [
+                    ...published.map((text, i) => `--- [Tier 1 - Published] Example ${i + 1} ---\n${text}`),
+                    ...approved.map((text, i) => `--- [Tier 2 - Approved] Example ${i + 1} ---\n${text}`),
+                ].slice(0, 5); // Take top 5 full posts to avoid context bloat
+
+                if (allPrioritized.length > 0) {
+                    prioritizedPostsContext = allPrioritized.join('\n\n');
+                }
+            }
+
+            // Step 2: Try to get RAG context for style lessons (gracefully skip if embeddings unavailable)
             const topicEmbedding = await embed(topic);
-            const [approvedPostsResults, styleLessonsResults] = await Promise.all([
-                query(topicEmbedding, 'approved_posts', 3).catch(() => []),
-                query(topicEmbedding, 'style_lessons', 2).catch(() => []),
-            ]);
-            approvedPosts = approvedPostsResults.map((r) => r.text ?? '').filter(Boolean);
+            const styleLessonsResults = await query(topicEmbedding, 'style_lessons', 2).catch(() => []);
             styleLessons = styleLessonsResults.map((r) => r.lesson ?? '').filter(Boolean);
         } catch (ragError) {
-            console.warn('[generate-draft] RAG context unavailable, generating without context:', ragError);
+            console.warn('[generate-draft] Context unavailable, generating without context:', ragError);
         }
 
         // Step 3 & 4: Generate post text + image concurrently
@@ -82,7 +108,7 @@ export async function POST(request: NextRequest) {
                 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const basePrompt = buildSystemPrompt(
                     intent && sourceText ? intent : topic,
-                    approvedPosts,
+                    prioritizedPostsContext,
                     styleLessons,
                     language || 'en'
                 );

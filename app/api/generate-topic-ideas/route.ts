@@ -7,9 +7,9 @@ export const maxDuration = 60; // Prevent Vercel timeouts
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function buildTopicsPrompt(language: string, recentTopics: string[]): string {
-    const inspirationContext = recentTopics.length > 0
-        ? `\n\nHere are some topics the user recently wrote about:\n${recentTopics.map(t => `- ${t}`).join('\n')}\nCRITICAL: Analyze these past topics to understand the user's specific niche and writing interests. Generate 4 NEW topics that are highly relevant to this specific niche, building upon or complementing these themes without repeating the exact same titles.`
+function buildTopicsPrompt(language: string, prioritizedTopics: string): string {
+    const inspirationContext = prioritizedTopics
+        ? `\n\nHere are some past topics the user wrote about, prioritized by their success level:\n${prioritizedTopics}\n\nBefore generating new suggestions, analyze the provided historical posts. Treat the 'Published' posts as your absolute baseline for success—mimic their tone, formatting, and structure heavily. Treat the 'Approved' posts as secondary good examples. Base your new suggestions strictly on the patterns found in these prioritized tiers. Generate 4 NEW topics that are highly relevant to this specific niche, building upon or complementing these themes without repeating the exact same titles.`
         : '';
 
     if (language === 'he') {
@@ -46,27 +46,38 @@ export async function POST(request: NextRequest) {
     const projectId = (body as { projectId?: string }).projectId;
 
     try {
-        let recentTopics: string[] = [];
+        let prioritizedTopicsContext = '';
         let query = supabase
             .from('posts')
-            .select('topic')
+            .select('topic, status')
             .eq('user_id', user.id)
-            .eq('status', 'Approved')
+            .in('status', ['Published', 'Approved'])
             .order('created_at', { ascending: false })
-            .limit(10);
+            .limit(20);
 
         if (projectId) {
             query = query.eq('project_id', projectId);
         }
 
         const { data: pastPosts } = await query;
-        if (pastPosts) {
-            recentTopics = pastPosts.map(p => p.topic).filter(Boolean);
+        if (pastPosts && pastPosts.length > 0) {
+            // Priority 1: Published, Priority 2: Approved
+            const published = pastPosts.filter(p => p.status === 'Published').map(p => p.topic).filter(Boolean);
+            const approved = pastPosts.filter(p => p.status === 'Approved').map(p => p.topic).filter(Boolean);
+
+            const allPrioritized = [
+                ...published.map(t => `[Tier 1 - Published] ${t}`),
+                ...approved.map(t => `[Tier 2 - Approved] ${t}`),
+            ].slice(0, 10); // Take top 10
+
+            if (allPrioritized.length > 0) {
+                prioritizedTopicsContext = allPrioritized.join('\n');
+            }
         }
 
         const topics = await withRetry(async () => {
             const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-            const result = await model.generateContent(buildTopicsPrompt(language, recentTopics));
+            const result = await model.generateContent(buildTopicsPrompt(language, prioritizedTopicsContext));
             const text = result.response.text().trim();
             // Extract JSON array from response
             const match = text.match(/\[[\s\S]*\]/);
