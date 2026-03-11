@@ -7,15 +7,32 @@ export const maxDuration = 60; // Prevent Vercel timeouts
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function buildTopicsPrompt(language: string, prioritizedTopics: string): string {
-    const inspirationContext = prioritizedTopics
-        ? `\n\nHere are some past topics the user wrote about, prioritized by their success level:\n${prioritizedTopics}\n\nBefore generating new suggestions, analyze the provided historical posts. Treat the 'Published' posts as your absolute baseline for success—mimic their tone, formatting, and structure heavily. Treat the 'Approved' posts as secondary good examples. Base your new suggestions strictly on the patterns found in these prioritized tiers. Generate 4 NEW topics that are highly relevant to this specific niche, building upon or complementing these themes without repeating the exact same titles.`
+function buildTopicsPrompt(language: string, prioritizedPosts: string): string {
+    const hasHistory = prioritizedPosts.length > 0;
+
+    const historyBlock = hasHistory
+        ? `
+=== CRITICAL: HISTORICAL POST ANALYSIS ===
+
+Below are the user's past posts, labeled by tier. You MUST analyze these before generating anything.
+
+${prioritizedPosts}
+
+=== END HISTORICAL POSTS ===
+
+INSTRUCTIONS FOR USING THE ABOVE:
+1. Identify the SPECIFIC themes, angles, industries, and audiences covered in these posts.
+2. Your 4 new topic suggestions MUST be closely related to these same themes.
+3. Do NOT suggest generic topics. Every suggestion must feel like a natural continuation of the content above.
+4. Do NOT repeat exact titles, but stay within the same subject matter.
+5. Tier 1 (Published) posts carry the most weight — prioritize their themes above all else.
+`
         : '';
 
     if (language === 'he') {
-        return `You are a content strategist for AWAD, an Israeli startup law firm and business advisory company.
-Generate exactly 4 compelling LinkedIn post topics in HEBREW (עברית) that AWAD's audience (startup founders, entrepreneurs, investors) would find valuable.
-Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem, business incorporation.${inspirationContext}
+        return `You are a content strategist. Your job is to suggest 4 NEW LinkedIn post topics in HEBREW (עברית).
+${historyBlock}
+${hasHistory ? 'Based strictly on the themes and patterns in the historical posts above,' : 'The company is AWAD, an Israeli startup law firm. Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem.'} generate exactly 4 compelling topic suggestions.
 
 Return a JSON array of strings with exactly 4 topic strings in Hebrew. Example format:
 ["נושא 1 כאן", "נושא 2 כאן", "נושא 3 כאן", "נושא 4 כאן"]
@@ -23,9 +40,9 @@ Return a JSON array of strings with exactly 4 topic strings in Hebrew. Example f
 Return ONLY the JSON array, no other text.`;
     }
 
-    return `You are a content strategist for AWAD, an Israeli startup law firm and business advisory company.
-Generate exactly 4 compelling LinkedIn post topics that AWAD's audience (startup founders, entrepreneurs, investors) would find valuable.
-Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem, business incorporation.${inspirationContext}
+    return `You are a content strategist. Your job is to suggest 4 NEW LinkedIn post topics.
+${historyBlock}
+${hasHistory ? 'Based strictly on the themes and patterns in the historical posts above,' : 'The company is AWAD, an Israeli startup law firm. Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem.'} generate exactly 4 compelling topic suggestions.
 
 Return a JSON array of strings with exactly 4 topic strings. Example format:
 ["Topic 1 here", "Topic 2 here", "Topic 3 here", "Topic 4 here"]
@@ -34,7 +51,6 @@ Return ONLY the JSON array, no other text.`;
 }
 
 export async function POST(request: NextRequest) {
-    // Auth check
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -45,45 +61,65 @@ export async function POST(request: NextRequest) {
     const language = (body as { language?: string }).language || 'en';
     const projectId = (body as { projectId?: string }).projectId;
 
+    console.log('[generate-topic-ideas] user_id:', user.id, 'projectId:', projectId, 'language:', language);
+
     try {
-        let prioritizedTopicsContext = '';
-        let query = supabase
+        let prioritizedPostsContext = '';
+
+        // Fetch Published + Approved posts — select full content for context
+        let postsQuery = supabase
             .from('posts')
-            .select('topic, status')
+            .select('topic, status, final_text')
             .eq('user_id', user.id)
             .in('status', ['Published', 'Approved'])
             .order('created_at', { ascending: false })
             .limit(20);
 
         if (projectId) {
-            query = query.eq('project_id', projectId);
+            postsQuery = postsQuery.eq('project_id', projectId);
         }
 
-        const { data: pastPosts } = await query;
-        if (pastPosts && pastPosts.length > 0) {
-            // Priority 1: Published, Priority 2: Approved
-            const published = pastPosts.filter(p => p.status === 'Published').map(p => p.topic).filter(Boolean);
-            const approved = pastPosts.filter(p => p.status === 'Approved').map(p => p.topic).filter(Boolean);
+        const { data: pastPosts, error: postsError } = await postsQuery;
 
+        console.log('[generate-topic-ideas] DB query result:', {
+            error: postsError?.message ?? null,
+            count: pastPosts?.length ?? 0,
+            statuses: pastPosts?.map(p => p.status) ?? [],
+            topics: pastPosts?.map(p => p.topic?.slice(0, 50)) ?? [],
+        });
+
+        if (pastPosts && pastPosts.length > 0) {
+            const published = pastPosts.filter(p => p.status === 'Published');
+            const approved = pastPosts.filter(p => p.status === 'Approved');
+
+            console.log('[generate-topic-ideas] Published:', published.length, 'Approved:', approved.length);
+
+            // Include FULL post content (truncated to 800 chars) so the AI truly understands the style/topics
             const allPrioritized = [
-                ...published.map(t => `[Tier 1 - Published] ${t}`),
-                ...approved.map(t => `[Tier 2 - Approved] ${t}`),
-            ].slice(0, 10); // Take top 10
+                ...published.map((p, i) => `[Tier 1 - Published Post ${i + 1}]\nTitle: ${p.topic}\nContent:\n${(p.final_text ?? '').slice(0, 800)}`),
+                ...approved.map((p, i) => `[Tier 2 - Approved Post ${i + 1}]\nTitle: ${p.topic}\nContent:\n${(p.final_text ?? '').slice(0, 800)}`),
+            ].slice(0, 5); // Top 5 full posts to keep context manageable
 
             if (allPrioritized.length > 0) {
-                prioritizedTopicsContext = allPrioritized.join('\n');
+                prioritizedPostsContext = allPrioritized.join('\n\n---\n\n');
             }
         }
 
+        console.log('[generate-topic-ideas] Context length:', prioritizedPostsContext.length, 'chars');
+
+        const prompt = buildTopicsPrompt(language, prioritizedPostsContext);
+        console.log('[generate-topic-ideas] Final prompt length:', prompt.length, 'chars');
+
         const topics = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-            const result = await model.generateContent(buildTopicsPrompt(language, prioritizedTopicsContext));
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+            const result = await model.generateContent(prompt);
             const text = result.response.text().trim();
-            // Extract JSON array from response
             const match = text.match(/\[[\s\S]*\]/);
             if (!match) throw new Error('Invalid JSON response from Gemini');
             return JSON.parse(match[0]) as string[];
         });
+
+        console.log('[generate-topic-ideas] Generated topics:', topics);
 
         return NextResponse.json({ topics });
     } catch (error) {
