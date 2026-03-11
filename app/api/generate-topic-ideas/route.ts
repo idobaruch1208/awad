@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         console.log('[generate-topic-ideas] Final prompt length:', prompt.length, 'chars');
 
         const topics = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
             const result = await model.generateContent(prompt);
             const text = result.response.text().trim();
             const match = text.match(/\[[\s\S]*\]/);
