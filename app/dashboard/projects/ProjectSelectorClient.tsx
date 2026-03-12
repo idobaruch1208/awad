@@ -36,7 +36,8 @@ export default function ProjectSelectorClient({
         });
         const data = await res.json();
         if (data.id) {
-            await selectProject(data.id);
+            // Redirect to onboarding wizard for new projects
+            router.push(`/dashboard/projects/onboarding?projectId=${data.id}`);
         }
     };
 

@@ -7,7 +7,16 @@ export const maxDuration = 60; // Prevent Vercel timeouts
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function buildTopicsPrompt(language: string, prioritizedPosts: string): string {
+interface ProfileCtx {
+    companyName?: string;
+    industry?: string;
+    targetAudience?: string;
+    contentGoals?: string;
+    brandVoice?: string;
+    writingRules?: string[];
+}
+
+function buildTopicsPrompt(language: string, prioritizedPosts: string, profile?: ProfileCtx): string {
     const hasHistory = prioritizedPosts.length > 0;
 
     const historyBlock = hasHistory
@@ -29,10 +38,23 @@ INSTRUCTIONS FOR USING THE ABOVE:
 `
         : '';
 
+    // Build company context from profile or use defaults
+    const companyName = profile?.companyName || 'AWAD';
+    const defaultContext = `The company is ${companyName}, an Israeli startup law firm. Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem.`;
+    const profileContext = profile?.industry
+        ? `The company is ${companyName} in the ${profile.industry} industry.${profile.targetAudience ? ` Target audience: ${profile.targetAudience}.` : ''}${profile.contentGoals ? ` Content goals: ${profile.contentGoals}.` : ''}${profile.brandVoice ? ` Brand voice: ${profile.brandVoice}.` : ''} Generate topics that resonate with this audience and serve these goals.`
+        : null;
+
+    const companyContext = profileContext || defaultContext;
+
+    const writingRulesBlock = profile?.writingRules && profile.writingRules.length > 0
+        ? `\n\nKeep these brand writing rules in mind when suggesting topics:\n${profile.writingRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+        : '';
+
     if (language === 'he') {
         return `You are a content strategist. Your job is to suggest 4 NEW LinkedIn post topics in HEBREW (עברית).
 ${historyBlock}
-${hasHistory ? 'Based strictly on the themes and patterns in the historical posts above,' : 'The company is AWAD, an Israeli startup law firm. Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem.'} generate exactly 4 compelling topic suggestions.
+${hasHistory ? 'Based strictly on the themes and patterns in the historical posts above,' : companyContext} generate exactly 4 compelling topic suggestions.${writingRulesBlock}
 
 Return a JSON array of strings with exactly 4 topic strings in Hebrew. Example format:
 ["נושא 1 כאן", "נושא 2 כאן", "נושא 3 כאן", "נושא 4 כאן"]
@@ -42,7 +64,7 @@ Return ONLY the JSON array, no other text.`;
 
     return `You are a content strategist. Your job is to suggest 4 NEW LinkedIn post topics.
 ${historyBlock}
-${hasHistory ? 'Based strictly on the themes and patterns in the historical posts above,' : 'The company is AWAD, an Israeli startup law firm. Topics should relate to: startup law, fundraising, term sheets, employment contracts, IP protection, tech regulation, Israeli startup ecosystem.'} generate exactly 4 compelling topic suggestions.
+${hasHistory ? 'Based strictly on the themes and patterns in the historical posts above,' : companyContext} generate exactly 4 compelling topic suggestions.${writingRulesBlock}
 
 Return a JSON array of strings with exactly 4 topic strings. Example format:
 ["Topic 1 here", "Topic 2 here", "Topic 3 here", "Topic 4 here"]
@@ -65,6 +87,29 @@ export async function POST(request: NextRequest) {
 
     try {
         let prioritizedPostsContext = '';
+        let profileCtx: ProfileCtx | undefined;
+
+        // Fetch project profile if available
+        if (projectId) {
+            const { data: profile } = await supabase
+                .from('project_profiles')
+                .select('company_name, industry, target_audience, content_goals, brand_voice, ai_analysis')
+                .eq('project_id', projectId)
+                .eq('onboarding_completed', true)
+                .single();
+
+            if (profile) {
+                const analysis = profile.ai_analysis as Record<string, unknown> | null;
+                profileCtx = {
+                    companyName: profile.company_name ?? undefined,
+                    industry: profile.industry ?? undefined,
+                    targetAudience: profile.target_audience ?? undefined,
+                    contentGoals: profile.content_goals ?? undefined,
+                    brandVoice: profile.brand_voice ?? undefined,
+                    writingRules: (analysis?.writing_rules as string[]) ?? undefined,
+                };
+            }
+        }
 
         // Fetch Published + Approved posts — select full content for context
         let postsQuery = supabase
@@ -107,7 +152,7 @@ export async function POST(request: NextRequest) {
 
         console.log('[generate-topic-ideas] Context length:', prioritizedPostsContext.length, 'chars');
 
-        const prompt = buildTopicsPrompt(language, prioritizedPostsContext);
+        const prompt = buildTopicsPrompt(language, prioritizedPostsContext, profileCtx);
         console.log('[generate-topic-ideas] Final prompt length:', prompt.length, 'chars');
 
         const topics = await withRetry(async () => {

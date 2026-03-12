@@ -13,6 +13,15 @@ export default async function DashboardHomePage() {
 
     const supabase = await createClient();
 
+    // Check if onboarding is completed
+    const { data: profile } = await supabase
+        .from('project_profiles')
+        .select('onboarding_completed')
+        .eq('project_id', projectId)
+        .single();
+
+    const needsOnboarding = !profile || !profile.onboarding_completed;
+
     const { data: posts } = await supabase
         .from('posts')
         .select('*')
@@ -45,6 +54,29 @@ export default async function DashboardHomePage() {
                     Generate Post
                 </Link>
             </div>
+
+            {/* Onboarding Nudge */}
+            {needsOnboarding && (
+                <Link
+                    href={`/dashboard/projects/onboarding?projectId=${projectId}`}
+                    className="mb-8 flex items-center gap-4 p-5 rounded-xl bg-gradient-to-r from-violet-950/60 to-indigo-950/60 border border-violet-700/40 hover:border-violet-500/60 transition-all duration-300 group"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-violet-600/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <span className="text-2xl">✨</span>
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-sm font-semibold text-white group-hover:text-violet-200 transition-colors">
+                            Complete your project setup
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                            Tell us about your brand and share past posts so the AI can match your unique voice and style.
+                        </p>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-500 group-hover:text-violet-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </Link>
+            )}
 
             {/* Stats — Clickable Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

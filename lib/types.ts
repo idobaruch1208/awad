@@ -25,6 +25,26 @@ export interface Project {
     created_at: string;
 }
 
+export interface ExamplePost {
+    text: string;
+    source?: string;
+}
+
+export interface ProjectProfile {
+    id: string;
+    project_id: string;
+    company_name: string | null;
+    industry: string | null;
+    target_audience: string | null;
+    content_goals: string | null;
+    brand_voice: string | null;
+    example_posts: ExamplePost[];
+    ai_analysis: Record<string, unknown> | null;
+    onboarding_completed: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface ProjectMember {
     id: string;
     project_id: string;

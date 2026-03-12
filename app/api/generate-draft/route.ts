@@ -9,9 +9,18 @@ export const maxDuration = 60; // Prevent Vercel timeouts
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function buildSystemPrompt(topic: string, prioritizedPosts: string, styleLessons: string[], language: string): string {
+interface ProfileContext {
+    companyName?: string;
+    industry?: string;
+    targetAudience?: string;
+    contentGoals?: string;
+    brandVoice?: string;
+    writingRules?: string[];
+}
+
+function buildSystemPrompt(topic: string, prioritizedPosts: string, styleLessons: string[], language: string, profile?: ProfileContext): string {
     const postsContext = prioritizedPosts
-        ? `\n\nHere are examples of past AWAD LinkedIn posts, prioritized by their success level:\n${prioritizedPosts}\n\nBefore generating new content, analyze the provided historical posts. Treat the 'Published' posts as your absolute baseline for success—mimic their tone, formatting, and structure heavily. Treat the 'Approved' posts as secondary good examples. Base your new suggestions strictly on the patterns found in these prioritized tiers.`
+        ? `\n\nHere are examples of past LinkedIn posts, prioritized by their success level:\n${prioritizedPosts}\n\nBefore generating new content, analyze the provided historical posts. Treat the 'Published' posts as your absolute baseline for success—mimic their tone, formatting, and structure heavily. Treat the 'Approved' posts as secondary good examples. Base your new suggestions strictly on the patterns found in these prioritized tiers.`
         : '';
 
     const lessonsContext = styleLessons.length > 0
@@ -22,20 +31,42 @@ function buildSystemPrompt(topic: string, prioritizedPosts: string, styleLessons
         ? '\n\nIMPORTANT: Write the ENTIRE post in Hebrew (עברית). The post content, hashtags, and call-to-action must all be in Hebrew. Use right-to-left text direction naturally.'
         : '\n\nWrite the post in English.';
 
-    return `You are a LinkedIn content writer for AWAD, an Israeli startup law firm and business advisory company. 
-AWAD helps startup founders with legal and business challenges: incorporation, term sheets, fundraising, employment agreements, IP protection, and regulatory compliance.
+    // Use project profile for branding if available, otherwise fall back to AWAD defaults
+    const companyName = profile?.companyName || 'AWAD';
+    const companyDesc = profile?.industry
+        ? `${companyName} is a company in the ${profile.industry} industry.`
+        : `${companyName} is an Israeli startup law firm and business advisory company.\nAWAD helps startup founders with legal and business challenges: incorporation, term sheets, fundraising, employment agreements, IP protection, and regulatory compliance.`;
+
+    const audienceContext = profile?.targetAudience
+        ? `\nTarget audience: ${profile.targetAudience}`
+        : '';
+
+    const goalsContext = profile?.contentGoals
+        ? `\nContent goals: ${profile.contentGoals}`
+        : '';
+
+    const voiceContext = profile?.brandVoice
+        ? `\nBrand voice: ${profile.brandVoice}`
+        : '';
+
+    const writingRulesContext = profile?.writingRules && profile.writingRules.length > 0
+        ? `\n\nIMPORTANT — Specific writing rules derived from the brand's past content (follow these strictly):\n${profile.writingRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+        : '';
+
+    return `You are a LinkedIn content writer for ${companyName}. 
+${companyDesc}${audienceContext}${goalsContext}${voiceContext}
 
 Your task: Write a compelling, professional LinkedIn post about the following topic.
 
 Brand Voice Guidelines:
-- Authoritative yet approachable — you are the trusted legal advisor
+- Authoritative yet approachable — you are the trusted advisor
 - Practical and actionable — give real value in every post
 - Confident but not arrogant
 - Use concise paragraphs, not walls of text
 - Include relevant emojis sparingly (1-3 max)
 - End with a clear call-to-action or thought-provoking question
 - Max 3,000 characters, ideally 800-1,200 characters
-- Include 3-5 relevant hashtags at the end${langInstruction}${postsContext}${lessonsContext}
+- Include 3-5 relevant hashtags at the end${langInstruction}${postsContext}${lessonsContext}${writingRulesContext}
 
 Topic to write about: ${topic}
 
@@ -64,8 +95,31 @@ export async function POST(request: NextRequest) {
         // Step 1: Fetch historical posts from DB prioritized by status
         let prioritizedPostsContext = '';
         let styleLessons: string[] = [];
+        let profileContext: ProfileContext | undefined;
 
         try {
+            // Fetch project profile if available
+            if (projectId) {
+                const { data: profile } = await supabase
+                    .from('project_profiles')
+                    .select('company_name, industry, target_audience, content_goals, brand_voice, ai_analysis')
+                    .eq('project_id', projectId)
+                    .eq('onboarding_completed', true)
+                    .single();
+
+                if (profile) {
+                    const analysis = profile.ai_analysis as Record<string, unknown> | null;
+                    profileContext = {
+                        companyName: profile.company_name ?? undefined,
+                        industry: profile.industry ?? undefined,
+                        targetAudience: profile.target_audience ?? undefined,
+                        contentGoals: profile.content_goals ?? undefined,
+                        brandVoice: profile.brand_voice ?? undefined,
+                        writingRules: (analysis?.writing_rules as string[]) ?? undefined,
+                    };
+                }
+            }
+
             let postsQuery = supabase
                 .from('posts')
                 .select('status, final_text')
@@ -110,7 +164,8 @@ export async function POST(request: NextRequest) {
                     intent && sourceText ? intent : topic,
                     prioritizedPostsContext,
                     styleLessons,
-                    language || 'en'
+                    language || 'en',
+                    profileContext
                 );
                 const finalPrompt = intent && sourceText
                     ? `${basePrompt}\n\nHere is the original content the user provided:\n---\n${sourceText}\n---\n\nUser's instruction: ${intent}\n\nBased on the original content and the user's instruction, write a LinkedIn post. Return ONLY the post content.`
