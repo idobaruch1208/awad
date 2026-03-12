@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import StatusSelector from '@/components/StatusSelector';
-import CopyButton from '@/components/CopyButton';
+import EditablePostContent from '@/components/EditablePostContent';
 import Link from 'next/link';
 import type { Post } from '@/lib/types';
 import { format } from 'date-fns';
@@ -25,7 +25,6 @@ export default async function PostDetailPage({
     }
 
     const typedPost = post as Post;
-    const charCount = typedPost.final_text?.length ?? 0;
 
     // Truncate topic if it's too long (e.g. pasted source text)
     const displayTopic = typedPost.topic.length > 120
@@ -60,24 +59,13 @@ export default async function PostDetailPage({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Post Content — Main Area */}
+                {/* Post Content — Main Area (editable for Draft/Reviewing/Approved) */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="glass rounded-2xl p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-sm font-semibold text-gray-300">Post Content</h2>
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
-                                {typedPost.final_text && <CopyButton text={typedPost.final_text} />}
-                            </div>
-                        </div>
-                        {typedPost.final_text ? (
-                            <div dir="auto" className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap max-h-[500px] overflow-y-auto">
-                                {typedPost.final_text}
-                            </div>
-                        ) : (
-                            <p className="text-gray-500 text-sm italic">No content yet</p>
-                        )}
-                    </div>
+                    <EditablePostContent
+                        postId={typedPost.id}
+                        initialText={typedPost.final_text ?? ''}
+                        status={typedPost.status}
+                    />
 
                     {/* Original Draft (if different from final) */}
                     {typedPost.original_draft && typedPost.original_draft !== typedPost.final_text && (
@@ -137,7 +125,7 @@ export default async function PostDetailPage({
                             )}
                             <div className="flex justify-between border-t border-gray-800 pt-3">
                                 <dt className="text-gray-500">Characters</dt>
-                                <dd className="text-gray-300 font-mono">{charCount}</dd>
+                                <dd className="text-gray-300 font-mono">{typedPost.final_text?.length ?? 0}</dd>
                             </div>
                             {typedPost.linkedin_post_id && (
                                 <div className="flex justify-between border-t border-gray-800 pt-3">
