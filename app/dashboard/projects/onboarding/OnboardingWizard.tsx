@@ -16,6 +16,7 @@ interface BrandInfo {
     targetAudience: string;
     contentGoals: string;
     brandVoice: string;
+    language: 'en' | 'he';
 }
 
 interface AiAnalysis {
@@ -77,6 +78,35 @@ function BrandStep({
             <div className="mb-2">
                 <h2 className="text-xl font-bold text-white mb-1">Tell us about your brand</h2>
                 <p className="text-gray-400 text-sm">This helps the AI tailor every post to your unique voice and audience.</p>
+            </div>
+
+            {/* Post Language */}
+            <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Post Language</label>
+                <div className="flex gap-3">
+                    <button
+                        type="button"
+                        onClick={() => onChange('language', 'en')}
+                        className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                            info.language === 'en'
+                                ? 'bg-violet-600/20 text-violet-300 border-2 border-violet-500/50'
+                                : 'bg-gray-800/60 text-gray-400 border border-gray-700/50 hover:border-gray-500'
+                        }`}
+                    >
+                        🇺🇸 English
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onChange('language', 'he')}
+                        className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                            info.language === 'he'
+                                ? 'bg-violet-600/20 text-violet-300 border-2 border-violet-500/50'
+                                : 'bg-gray-800/60 text-gray-400 border border-gray-700/50 hover:border-gray-500'
+                        }`}
+                    >
+                        🇮🇱 עברית
+                    </button>
+                </div>
             </div>
 
             {/* Company Name */}
@@ -427,6 +457,7 @@ function ReviewStep({
                     targetAudience: brandInfo.targetAudience,
                     contentGoals: brandInfo.contentGoals,
                     brandVoice: brandInfo.brandVoice,
+                    language: brandInfo.language,
                     examplePosts: filledPosts.map((p) => ({ text: p.text, source: p.source })),
                 }),
             });
@@ -727,6 +758,7 @@ export default function OnboardingWizard({ projectId, projectName }: { projectId
         targetAudience: '',
         contentGoals: '',
         brandVoice: '',
+        language: 'en',
     });
     const [examplePosts, setExamplePosts] = useState<ExamplePostSlot[]>([
         { text: '' },

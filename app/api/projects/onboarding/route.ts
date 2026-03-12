@@ -14,6 +14,7 @@ interface OnboardingPayload {
     targetAudience: string;
     contentGoals: string;
     brandVoice: string;
+    language: string;
     examplePosts: { text: string; source?: string }[];
 }
 
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { projectId, companyName, industry, targetAudience, contentGoals, brandVoice, examplePosts } = payload;
+    const { projectId, companyName, industry, targetAudience, contentGoals, brandVoice, language, examplePosts } = payload;
 
     if (!projectId) {
         return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
             target_audience: targetAudience?.trim() || null,
             content_goals: contentGoals?.trim() || null,
             brand_voice: brandVoice?.trim() || null,
+            language: language || 'en',
             example_posts: examplePosts.filter(p => p.text.trim().length > 0),
             ai_analysis: aiAnalysis,
             onboarding_completed: true,
