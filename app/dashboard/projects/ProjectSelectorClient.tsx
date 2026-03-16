@@ -70,7 +70,7 @@ export default function ProjectSelectorClient({
             {canDelete && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(project.id); }}
-                    className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-950/30 transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-950/30 transition-all"
                     title="Delete project"
                 >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
