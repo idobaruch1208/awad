@@ -4,6 +4,7 @@ import StatusBadge from '@/components/StatusBadge';
 import type { Post } from '@/lib/types';
 import { getActiveProjectId } from '@/lib/project-context';
 import { redirect } from 'next/navigation';
+import KanbanBoard from './KanbanBoard';
 
 interface Props {
     searchParams: Promise<{ view?: string }>;
@@ -120,37 +121,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
 
             {/* Content Display */}
             {view === 'kanban' ? (
-                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
-                    {columns.map(col => {
-                        const colPosts = allPosts.filter(p => p.status === col);
-                        return (
-                            <div key={col} className="w-72 flex-shrink-0 flex flex-col bg-gray-900/20 border border-gray-800/60 rounded-xl overflow-hidden">
-                                <div className="px-4 py-3 border-b border-gray-800/60 bg-gray-900/40 flex items-center justify-between">
-                                    <h3 className="text-sm font-semibold text-gray-300">{col}</h3>
-                                    <span className="text-xs text-gray-500 bg-gray-950 px-2 py-0.5 rounded-full border border-gray-800">{colPosts.length}</span>
-                                </div>
-                                <div className="p-3 space-y-3 min-h-[150px] max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
-                                    {colPosts.map(post => (
-                                        <Link key={post.id} href={`/dashboard/posts/${post.id}`} className="block glass p-4 rounded-lg hover:border-violet-500/40 transition-all hover:shadow-md hover:shadow-violet-900/10 group cursor-pointer border border-gray-800/80">
-                                            <p className="text-sm text-gray-200 font-medium leading-relaxed line-clamp-3 mb-3 group-hover:text-white transition-colors">
-                                                {post.topic}
-                                            </p>
-                                            <div className="flex items-center justify-between text-[11px] text-gray-500">
-                                                <span>{new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                                <StatusBadge status={post.status} />
-                                            </div>
-                                        </Link>
-                                    ))}
-                                    {colPosts.length === 0 && (
-                                        <div className="h-24 flex items-center justify-center text-xs text-gray-600 border border-dashed border-gray-800/50 rounded-lg">
-                                            Empty
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                <KanbanBoard initialPosts={allPosts} columns={columns} />
             ) : (
                 <div className="glass rounded-xl overflow-hidden border border-gray-800/80">
                     <div className="px-6 py-4 border-b border-gray-800/80 flex items-center justify-between bg-gray-900/20">
