@@ -30,7 +30,7 @@ export async function DELETE(request: NextRequest) {
     // Use service role key to bypass RLS for deletion
     const supabaseAdmin = createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_KEY!
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
     // Delete — CASCADE takes care of posts, profiles, members, invites
