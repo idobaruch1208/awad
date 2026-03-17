@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export async function DELETE(request: NextRequest) {
     const supabase = await createClient();
@@ -26,8 +27,14 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'Only project owners can delete a project' }, { status: 403 });
     }
 
+    // Use service role key to bypass RLS for deletion
+    const supabaseAdmin = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+    );
+
     // Delete — CASCADE takes care of posts, profiles, members, invites
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from('projects')
         .delete()
         .eq('id', projectId);

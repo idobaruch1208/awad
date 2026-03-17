@@ -66,19 +66,6 @@ export default function ProjectSelectorClient({
 
     const ProjectCard = ({ project, badge, canDelete }: { project: Project; badge?: string; canDelete?: boolean }) => (
         <div className="glass rounded-xl p-5 text-left transition-all duration-200 hover:border-violet-600/50 hover:shadow-lg hover:shadow-violet-900/20 group w-full relative">
-            {/* Delete button for owners */}
-            {canDelete && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(project.id); }}
-                    className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-950/30 transition-all"
-                    title="Delete project"
-                >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
-            )}
-
             {/* Confirmation dialog */}
             {confirmDelete === project.id ? (
                 <div className="space-y-3">
@@ -104,17 +91,30 @@ export default function ProjectSelectorClient({
                 <button
                     onClick={() => selectProject(project.id)}
                     disabled={loading !== null}
-                    className="w-full text-left cursor-pointer disabled:opacity-50"
+                    className="w-full text-left cursor-pointer disabled:opacity-50 relative z-0"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <div className="text-lg font-semibold text-white group-hover:text-violet-300 transition-colors">
+                        <div className="text-lg font-semibold text-white group-hover:text-violet-300 transition-colors pr-2">
                             {project.name}
                         </div>
-                        {badge && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-600/20 text-violet-400 border border-violet-600/30">
-                                {badge}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-2 relative z-20">
+                            {badge && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-600/20 text-violet-400 border border-violet-600/30 whitespace-nowrap">
+                                    {badge}
+                                </span>
+                            )}
+                            {canDelete && (
+                                <div
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(project.id); }}
+                                    className="p-1 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-950/30 transition-all cursor-pointer"
+                                    title="Delete project"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="text-xs text-gray-500">
                         Created {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
