@@ -5,6 +5,7 @@ import Link from 'next/link';
 import StatusBadge from '@/components/StatusBadge';
 import type { Post } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import PostActionsMenu from '@/components/PostActionsMenu';
 
 export default function KanbanBoard({ initialPosts, columns }: { initialPosts: Post[], columns: string[] }) {
     const [posts, setPosts] = useState(initialPosts);
@@ -101,7 +102,10 @@ export default function KanbanBoard({ initialPosts, columns }: { initialPosts: P
                                     onDragEnd={(e) => handleDragEnd(e, post.id)}
                                     className="block glass rounded-lg transition-all cursor-[grab] active:cursor-[grabbing] border border-gray-800/80 hover:border-violet-500/40 hover:shadow-md hover:shadow-violet-900/10 transform origin-top relative group"
                                 >
-                                    <Link href={`/dashboard/posts/${post.id}`} draggable={false} className="block p-4 w-full h-full">
+                                    <div className="absolute top-3 right-2 z-20">
+                                        <PostActionsMenu postId={post.id} />
+                                    </div>
+                                    <Link href={`/dashboard/posts/${post.id}`} draggable={false} className="block p-4 w-full h-full pr-10">
                                         <p className="text-sm text-gray-200 font-medium leading-relaxed line-clamp-3 mb-3 group-hover:text-white transition-colors select-none">
                                             {post.topic}
                                         </p>

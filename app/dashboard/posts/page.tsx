@@ -5,6 +5,7 @@ import type { Post, PostStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { getActiveProjectId } from '@/lib/project-context';
 import { redirect } from 'next/navigation';
+import PostActionsMenu from '@/components/PostActionsMenu';
 
 type FilterType = 'all' | 'published' | 'scheduled' | 'in-progress';
 
@@ -36,6 +37,7 @@ export default async function PostsPage({
         .from('posts')
         .select('*')
         .eq('project_id', projectId)
+        .eq('is_archived', false)
         .order('created_at', { ascending: false });
 
     if (filterConfig.statuses) {
@@ -108,6 +110,7 @@ export default async function PostsPage({
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Published</th>
+                                <th className="w-10"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800">
@@ -135,6 +138,9 @@ export default async function PostsPage({
                                             : post.status === 'Scheduled' && post.target_timestamp
                                                 ? `⏰ ${format(new Date(post.target_timestamp), 'MMM d, HH:mm')}`
                                                 : '—'}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <PostActionsMenu postId={post.id} />
                                     </td>
                                 </tr>
                             ))}

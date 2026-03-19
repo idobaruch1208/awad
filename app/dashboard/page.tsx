@@ -34,6 +34,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
         .from('posts')
         .select('*')
         .eq('project_id', projectId)
+        .eq('is_archived', false)
         .order('created_at', { ascending: false });
 
     const allPosts: Post[] = posts ?? [];
