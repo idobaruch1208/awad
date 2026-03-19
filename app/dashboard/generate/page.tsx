@@ -209,6 +209,35 @@ function PostEditorStage({
     };
 
     const [styleLessons, setStyleLessons] = useState<string[]>([]);
+    const [savingDraft, setSavingDraft] = useState(false);
+
+    const handleSaveAsDraft = async () => {
+        setSavingDraft(true);
+        try {
+            const res = await fetch('/api/update-post-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId: draft.postId, finalText: text }),
+            });
+            const data = await res.json() as { success?: boolean; error?: string };
+            if (data.success) {
+                // Ensure status is at least Draft (in case it got stuck)
+                await fetch('/api/update-post-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ postId: draft.postId, status: 'Draft' }),
+                });
+                onToast('Draft saved successfully ✅', 'success');
+                setTimeout(() => router.push('/dashboard/posts'), 1500);
+            } else {
+                onToast(data.error ?? 'Saving failed', 'error');
+            }
+        } catch {
+            onToast('Network error', 'error');
+        } finally {
+            setSavingDraft(false);
+        }
+    };
 
     const handleApprove = async () => {
         setApproving(true);
@@ -272,6 +301,11 @@ function PostEditorStage({
         setTimeout(() => router.push('/dashboard/posts'), 1000);
     };
 
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(text);
+        onToast('Copied to clipboard!', 'success');
+    };
+
     return (
         <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
@@ -279,26 +313,48 @@ function PostEditorStage({
                     <h1 className="text-2xl font-bold text-white">Review & Refine</h1>
                     <p className="text-gray-400 text-sm mt-1">Edit the post directly in the text box below, or use <span className="text-violet-400">✨ Refine with AI</span> to ask the AI to update it for you.</p>
                 </div>
-                <button
-                    onClick={handleApprove}
-                    disabled={approving || charCount > charLimit}
-                    className="btn-primary px-6 py-2.5"
-                >
-                    {approving ? (
-                        <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Approving...</>
-                    ) : '✓ Approve Post'}
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleSaveAsDraft}
+                        disabled={savingDraft || charCount > charLimit}
+                        className="py-2.5 px-6 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 transition disabled:opacity-50"
+                    >
+                        {savingDraft ? 'Saving...' : 'Save as Draft'}
+                    </button>
+                    <button
+                        onClick={handleApprove}
+                        disabled={approving || charCount > charLimit}
+                        className="btn-primary px-6 py-2.5"
+                    >
+                        {approving ? (
+                            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Approving...</>
+                        ) : '✓ Approve Post'}
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left: Text Editor */}
                 <div className="space-y-4">
                     <div className="glass rounded-2xl p-5">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-3 border-b border-gray-800/80 pb-3">
                             <label className="text-sm font-medium text-gray-300">Post Content</label>
-                            <span className={`text-xs font-mono ${charCount > charLimit ? 'text-red-400' : charCount > charLimit * 0.9 ? 'text-orange-400' : 'text-gray-500'}`}>
-                                {charCount} / {charLimit}
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={copyToClipboard}
+                                    title="Copy text"
+                                    className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    Copy
+                                </button>
+                                <div className="h-4 w-px bg-gray-800 hidden sm:block"></div>
+                                <span className={`text-xs font-mono select-none ${charCount > charLimit ? 'text-red-400' : charCount > charLimit * 0.9 ? 'text-orange-400' : 'text-gray-500'}`}>
+                                    {charCount} / {charLimit}
+                                </span>
+                            </div>
                         </div>
                         <textarea
                             value={text}
