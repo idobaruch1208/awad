@@ -29,29 +29,62 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
     );
 }
 
+// ─── Language Management ──────────────────────────────────────────────────────
+function usePostLanguage() {
+    const [lang, setLangState] = useState('he');
+    
+    useEffect(() => {
+        const cookieLang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1];
+        if (cookieLang) setLangState(cookieLang);
+    }, []);
+
+    const setLang = (newLang: string) => {
+        setLangState(newLang);
+        document.cookie = `post_language=${newLang}; path=/; max-age=31536000`;
+    };
+
+    return { lang, setLang };
+}
+
+function LanguageToggle({ lang, setLang }: { lang: string, setLang: (l: string) => void }) {
+    return (
+        <div className="flex items-center justify-between bg-gray-900/40 p-1.5 rounded-xl border border-gray-800/60 w-full mb-6">
+            <button
+                onClick={() => setLang('he')}
+                className={`flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${lang === 'he' ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-inner' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 border border-transparent'}`}
+            >
+                <span>🇮🇱</span> עברית (Hebrew)
+            </button>
+            <button
+                onClick={() => setLang('en')}
+                className={`flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${lang === 'en' ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-inner' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 border border-transparent'}`}
+            >
+                <span>🇬🇧</span> English
+            </button>
+        </div>
+    );
+}
+
 // ─── Topic Selection ──────────────────────────────────────────────────────────
 function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: string) => void }) {
     const [topics, setTopics] = useState<string[]>([]);
     const [loadingTopics, setLoadingTopics] = useState(true);
     const [customTopic, setCustomTopic] = useState('');
     const [selected, setSelected] = useState<string | null>(null);
-    const [isRtl, setIsRtl] = useState(false);
+    const { lang, setLang } = usePostLanguage();
+    const isRtl = lang === 'he';
 
     useEffect(() => {
         const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
-        // Fetch language from project profile (via API) instead of just cookie
-        fetch('/api/set-language')
-            .then(r => r.json())
-            .then(d => {
-                const lang = d.language || 'en';
-                setIsRtl(lang === 'he');
-                return fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: lang, projectId }) });
-            })
+        
+        // Use the current hook state for the fetch
+        const fetchLang = lang;
+        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: fetchLang, projectId }) })
             .then((r) => r.json())
             .then((d) => setTopics(d.topics ?? []))
             .catch(() => setTopics([]))
             .finally(() => setLoadingTopics(false));
-    }, []);
+    }, [lang]); // Refetch topics if language changes!
 
     const handleConfirm = () => {
         const topic = customTopic.trim() || selected;
@@ -107,6 +140,8 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
                     }}
                 />
             </div>
+
+            <LanguageToggle lang={lang} setLang={setLang} />
 
             <button
                 className="btn-primary w-full justify-center py-3.5 text-base"
@@ -553,12 +588,13 @@ function IntentSelectionStage({
     const [intents, setIntents] = useState<Intent[]>([]);
     const [loadingIntents, setLoadingIntents] = useState(true);
     const [isEditingSource, setIsEditingSource] = useState(false);
+    const { lang, setLang } = usePostLanguage();
 
     useEffect(() => {
         let mounted = true;
         const fetchIntents = async () => {
+            if (mounted) setLoadingIntents(true);
             try {
-                const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
                 const res = await fetch('/api/generate-intents', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -581,7 +617,7 @@ function IntentSelectionStage({
         };
         fetchIntents();
         return () => { mounted = false; };
-    }, [initialSourceText]);
+    }, [initialSourceText, lang]);
 
     const preview = sourceText.slice(0, 150) + (sourceText.length > 150 ? '...' : '');
 
@@ -598,6 +634,8 @@ function IntentSelectionStage({
                 <h1 className="text-2xl font-bold text-white mb-1">What should I do with this?</h1>
                 <p className="text-gray-400 text-sm">You pasted some content. Choose an action or tell me what you&apos;d like.</p>
             </div>
+
+            <LanguageToggle lang={lang} setLang={setLang} />
 
             {/* Preview of pasted content */}
             <div
@@ -699,7 +737,7 @@ export default function GeneratePage() {
         setStage('generating');
         try {
             const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
-            const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'en';
+            const lang = document.cookie.split('; ').find(c => c.startsWith('post_language='))?.split('=')[1] || 'he';
             const res = await fetch('/api/generate-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
