@@ -49,15 +49,27 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Only the creator or an admin can delete a post' }, { status: 403 });
         }
 
+        // Initialize admin client to bypass RLS for soft-delete
+        const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+        const supabaseAdmin = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
         // Soft-delete the post
-        const { error: updateError } = await supabase
+        const { error: updateError, data: updateData } = await supabaseAdmin
             .from('posts')
             .update({ is_archived: true, updated_at: new Date().toISOString() })
-            .eq('id', postId);
+            .eq('id', postId)
+            .select();
 
         if (updateError) {
             console.error('Error soft-deleting post:', updateError);
             return NextResponse.json({ error: updateError.message }, { status: 500 });
+        }
+        
+        if (!updateData || updateData.length === 0) {
+            return NextResponse.json({ error: 'Post could not be updated.' }, { status: 500 });
         }
 
         return NextResponse.json({ success: true });

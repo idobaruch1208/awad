@@ -81,26 +81,42 @@ export default function PostActionsMenu({ postId }: { postId: string }) {
             )}
 
             {showConfirm && (
-                <div className="absolute right-0 mt-1 w-64 bg-gray-900 border border-red-900/50 rounded-lg shadow-2xl z-50 p-4">
-                    <p className="text-sm text-gray-300 mb-4">Are you sure you want to delete this post?</p>
-                    <div className="flex gap-2 justify-end">
-                        <button
-                            onClick={() => {
-                                setShowConfirm(false);
-                                setIsOpen(false);
-                            }}
-                            className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white bg-gray-800 rounded-md transition-colors"
-                            disabled={isDeleting}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-500 rounded-md transition-colors disabled:opacity-50"
-                        >
-                            {isDeleting ? 'Deleting...' : 'Yes, delete'}
-                        </button>
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 cursor-default" 
+                    onClick={(e) => { e.stopPropagation(); setShowConfirm(false); setIsOpen(false); }}
+                >
+                    <div 
+                        className="glass rounded-xl p-6 max-w-sm w-full border border-red-900/30 shadow-2xl" 
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                           <span className="text-red-500">⚠️</span> Delete Post
+                        </h3>
+                        <p className="text-sm text-gray-300 mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
+                        <div className="flex gap-3 justify-end">
+                            <button 
+                                onClick={() => { setShowConfirm(false); setIsOpen(false); }} 
+                                className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700/50"
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }} 
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-red-900/20"
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                        </svg>
+                                        Deleting...
+                                    </>
+                                ) : 'Yes, delete'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
