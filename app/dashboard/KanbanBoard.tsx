@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import StatusBadge from '@/components/StatusBadge';
 import type { Post } from '@/lib/types';
@@ -12,6 +12,13 @@ export default function KanbanBoard({ initialPosts, columns }: { initialPosts: P
     const [draggedPostId, setDraggedPostId] = useState<string | null>(null);
     const [dragOverCol, setDragOverCol] = useState<string | null>(null);
     const router = useRouter();
+
+    // Synchronize local state with Server Component data fetches
+    // This allows router.refresh() (e.g. from deleting or external components)
+    // to properly update the Kanban board without a hard browser reload.
+    useEffect(() => {
+        setPosts(initialPosts);
+    }, [initialPosts]);
 
     const handleDragStart = (e: React.DragEvent, id: string) => {
         setDraggedPostId(id);
