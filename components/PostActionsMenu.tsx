@@ -3,15 +3,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 
 export default function PostActionsMenu({ postId }: { postId: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
     useEffect(() => {
+        setMounted(true);
         function handleClickOutside(event: MouseEvent) {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
@@ -80,7 +83,7 @@ export default function PostActionsMenu({ postId }: { postId: string }) {
                 </div>
             )}
 
-            {showConfirm && (
+            {showConfirm && mounted && createPortal(
                 <div 
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 cursor-default" 
                     onClick={(e) => { e.stopPropagation(); setShowConfirm(false); setIsOpen(false); }}
@@ -118,7 +121,8 @@ export default function PostActionsMenu({ postId }: { postId: string }) {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
