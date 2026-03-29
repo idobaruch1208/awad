@@ -20,7 +20,7 @@ interface ProfileContext {
 
 function buildSystemPrompt(topic: string, prioritizedPosts: string, styleLessons: string[], language: string, profile?: ProfileContext): string {
     const postsContext = prioritizedPosts
-        ? `\n\nHere are examples of past LinkedIn posts, prioritized by their success level:\n${prioritizedPosts}\n\nBefore generating new content, analyze the provided historical posts. Treat the 'Published' posts as your absolute baseline for success—mimic their tone, formatting, and structure heavily. Treat the 'Approved' posts as secondary good examples. Base your new suggestions strictly on the patterns found in these prioritized tiers.`
+        ? `\n\nHere are examples of past LinkedIn posts, prioritized by their success level:\n${prioritizedPosts}\n\nBefore generating new content, analyze the provided 'Published' posts. These represent the final, manually edited, and user-approved versions. You MUST internalize and mimic their specific tone, professional vocabulary, sentence structure, and formatting.\nPay close attention to the structural patterns in these published posts and apply them to all new generations. Do not output generic AI-sounding text; match the exact persona of the injected examples.`
         : '';
 
     const lessonsContext = styleLessons.length > 0

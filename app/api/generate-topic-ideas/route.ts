@@ -30,11 +30,10 @@ ${prioritizedPosts}
 === END HISTORICAL POSTS ===
 
 INSTRUCTIONS FOR USING THE ABOVE:
-1. Identify the SPECIFIC themes, angles, industries, and audiences covered in these posts.
-2. Your 4 new topic suggestions MUST be closely related to these same themes.
-3. Do NOT suggest generic topics. Every suggestion must feel like a natural continuation of the content above.
-4. Do NOT repeat exact titles, but stay within the same subject matter.
-5. Tier 1 (Published) posts carry the most weight — prioritize their themes above all else.
+1. Analyze the provided history to understand the trajectory and themes of the content.
+2. The suggestions must act as the logical next steps or complementary angles to the previously Published posts.
+3. Strictly avoid duplicating past topics. Do NOT suggest generic topics.
+4. Tier 1 (Published) posts carry the absolute most weight — prioritize their logic and progression.
 `
         : '';
 
