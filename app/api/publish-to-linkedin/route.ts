@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { processPostLearnings } from '@/lib/learnings';
 
 async function publishToLinkedIn(
     access_token: string,
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
                 linkedin_post_id: linkedinPostId,
             })
             .eq('id', postId);
+
+        processPostLearnings(postId).catch(console.error);
 
         return NextResponse.json({ success: true, linkedinPostId });
     } catch (error) {

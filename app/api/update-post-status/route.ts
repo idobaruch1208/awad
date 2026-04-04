@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { PostStatus } from '@/lib/types';
+import { processPostLearnings } from '@/lib/learnings';
 
 export async function POST(request: NextRequest) {
     const supabase = await createClient();
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('Error updating status:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Trigger learning if transitioned to a finalized state
+        if (['Approved', 'Scheduled', 'Published'].includes(status)) {
+            processPostLearnings(postId).catch(console.error);
         }
 
         return NextResponse.json({ success: true });

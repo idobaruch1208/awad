@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { processPostLearnings } from '@/lib/learnings';
 
 export async function POST(request: NextRequest) {
     const supabase = await createClient();
@@ -27,6 +28,8 @@ export async function POST(request: NextRequest) {
         console.error('[schedule-post] DB error:', error);
         return NextResponse.json({ error: 'Failed to schedule post' }, { status: 500 });
     }
+
+    processPostLearnings(postId).catch(console.error);
 
     return NextResponse.json({ success: true });
 }

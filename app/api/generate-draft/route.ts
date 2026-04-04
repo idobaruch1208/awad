@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@/lib/supabase/server';
-import { embed } from '@/lib/embed';
-import { query } from '@/lib/vectordb';
 import { withRetry } from '@/lib/retry';
 
 export const maxDuration = 60; // Prevent Vercel timeouts
@@ -148,10 +146,38 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // Step 2: Try to get RAG context for style lessons (gracefully skip if embeddings unavailable)
-            const topicEmbedding = await embed(topic);
-            const styleLessonsResults = await query(topicEmbedding, 'style_lessons', 2).catch(() => []);
-            styleLessons = styleLessonsResults.map((r) => r.lesson ?? '').filter(Boolean);
+            // Step 2: Extract learnings from post_learnings prioritized by post status
+            let learningsQuery = supabase
+                .from('post_learnings')
+                .select(`
+                    insight,
+                    posts!inner(status)
+                `)
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (projectId) {
+                learningsQuery = learningsQuery.eq('project_id', projectId);
+            }
+
+            const { data: dbLearnings, error: learningsError } = await learningsQuery;
+
+            if (!learningsError && dbLearnings && dbLearnings.length > 0) {
+                const publishedLearnings = dbLearnings
+                    // @ts-ignore - Supabase type inference for inner joined single records
+                    .filter(l => l.posts.status === 'Published')
+                    .map(l => l.insight);
+                    
+                const approvedLearnings = dbLearnings
+                    // @ts-ignore
+                    .filter(l => ['Approved', 'Scheduled'].includes(l.posts.status))
+                    .map(l => l.insight);
+
+                styleLessons = [
+                    ...publishedLearnings.map(l => `[CRITICAL Rule from Published Post]: ${l}`),
+                    ...approvedLearnings.map(l => `[Rule from Approved Draft]: ${l}`)
+                ].slice(0, 10); // Limit context size
+            }
         } catch (ragError) {
             console.warn('[generate-draft] Context unavailable, generating without context:', ragError);
         }
