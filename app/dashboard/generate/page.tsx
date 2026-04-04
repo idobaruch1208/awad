@@ -209,8 +209,31 @@ function PostEditorStage({
     const [scheduling, setScheduling] = useState(false);
     const [scheduleDate, setScheduleDate] = useState('');
     const [scheduleTime, setScheduleTime] = useState('10:00');
+    // Undo history stack – stores previous text states
+    const [history, setHistory] = useState<string[]>([]);
+    const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const charCount = text.length;
     const charLimit = 3000;
+
+    // Push to history with 600 ms debounce so rapid keystrokes don't flood the stack
+    const pushHistory = useCallback((prev: string) => {
+        if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
+        historyTimerRef.current = setTimeout(() => {
+            setHistory(h => [...h.slice(-49), prev]); // keep last 50 snapshots
+        }, 600);
+    }, []);
+
+    const handleTextChange = (newText: string) => {
+        pushHistory(text); // snapshot current before applying new
+        setText(newText);
+    };
+
+    const handleUndo = () => {
+        if (history.length === 0) return;
+        const prev = history[history.length - 1];
+        setHistory(h => h.slice(0, -1));
+        setText(prev);
+    };
 
     const handleRefine = async () => {
         if (!refineInstruction.trim()) return;
@@ -222,7 +245,12 @@ function PostEditorStage({
                 body: JSON.stringify({ currentText: text, instruction: refineInstruction }),
             });
             const data = await res.json() as { refinedText?: string; error?: string };
-            if (data.refinedText) { setText(data.refinedText); setRefineInstruction(''); }
+            if (data.refinedText) {
+                // Immediately snapshot before AI overwrites
+                setHistory(h => [...h.slice(-49), text]);
+                setText(data.refinedText);
+                setRefineInstruction('');
+            }
             else onToast(data.error ?? 'Refinement failed', 'error');
         } catch { onToast('Network error', 'error'); }
         finally { setRefining(false); }
@@ -376,6 +404,18 @@ function PostEditorStage({
                             <label className="text-sm font-medium text-gray-300">Post Content</label>
                             <div className="flex items-center gap-3">
                                 <button
+                                    onClick={handleUndo}
+                                    disabled={history.length === 0}
+                                    title="Undo last change"
+                                    className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                    </svg>
+                                    Undo
+                                </button>
+                                <div className="h-4 w-px bg-gray-800 hidden sm:block"></div>
+                                <button
                                     onClick={copyToClipboard}
                                     title="Copy text"
                                     className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs"
@@ -393,7 +433,7 @@ function PostEditorStage({
                         </div>
                         <textarea
                             value={text}
-                            onChange={(e) => setText(e.target.value)}
+                            onChange={(e) => handleTextChange(e.target.value)}
                             dir="auto"
                             className="input-field resize-none font-mono text-xs leading-relaxed"
                             rows={16}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CopyButton from './CopyButton';
 import type { PostStatus } from '@/lib/types';
@@ -27,6 +27,11 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
     const [refineInstruction, setRefineInstruction] = useState('');
     const [refining, setRefining] = useState(false);
     const [translating, setTranslating] = useState(false);
+    
+    // Undo history state
+    const [history, setHistory] = useState<string[]>([]);
+    const historyTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     const router = useRouter();
 
     const isEditable = EDITABLE_STATUSES.includes(status);
@@ -35,6 +40,25 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
 
     const currentLang = detectLanguage(text);
     const targetLang = currentLang === 'he' ? 'English' : 'Hebrew (עברית)';
+
+    const pushHistory = useCallback((prev: string) => {
+        if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
+        historyTimerRef.current = setTimeout(() => {
+            setHistory(h => [...h.slice(-49), prev]); // keep last 50 snapshots
+        }, 600);
+    }, []);
+
+    const handleTextChange = (newText: string) => {
+        pushHistory(text); // snapshot current before applying new
+        setText(newText);
+    };
+
+    const handleUndo = () => {
+        if (history.length === 0) return;
+        const prev = history[history.length - 1];
+        setHistory(h => h.slice(0, -1));
+        setText(prev);
+    };
 
     // Sync if server data changes
     useEffect(() => {
@@ -73,6 +97,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
             });
             const data = await res.json() as { refinedText?: string; error?: string };
             if (data.refinedText) {
+                setHistory(h => [...h.slice(-49), text]);
                 setText(data.refinedText);
                 setRefineInstruction('');
             }
@@ -98,6 +123,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
             });
             const data = await res.json() as { refinedText?: string; error?: string };
             if (data.refinedText) {
+                setHistory(h => [...h.slice(-49), text]);
                 setText(data.refinedText);
             }
         } catch (error) {
@@ -114,8 +140,20 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold text-gray-300">Post Content</h2>
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
+                        <button
+                            onClick={handleUndo}
+                            disabled={history.length === 0}
+                            title="Undo last change"
+                            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Undo
+                        </button>
+                        <div className="h-4 w-px bg-gray-800 hidden sm:block"></div>
                         {text && <CopyButton text={text} />}
+                        <span className="text-xs text-gray-500 font-mono">{charCount} characters</span>
                         {isEditable && hasUnsavedChanges && (
                             <button
                                 onClick={handleSave}
