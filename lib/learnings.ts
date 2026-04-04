@@ -8,9 +8,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 /**
  * Extracts and stores learnings based on the diff between the original AI draft
  * and the final text provided by the human edited version.
+ * Returns the array of insights extracted, or null if nothing was learned.
  */
-export async function processPostLearnings(postId: string) {
-    if (!postId) return;
+export async function processPostLearnings(postId: string): Promise<string[] | null> {
+    if (!postId) return null;
 
     try {
         const supabase = createClient(
@@ -27,18 +28,18 @@ export async function processPostLearnings(postId: string) {
 
         if (error || !post) {
             console.error('[learnings] Failed to fetch post:', error);
-            return;
+            return null;
         }
 
-        const { original_draft, final_text, project_id, status } = post;
+        const { original_draft, final_text, project_id } = post;
 
         if (!original_draft || !final_text || !project_id) {
-            return;
+            return null;
         }
 
         if (original_draft === final_text) {
             // No manual edits were made, so there's nothing new to learn.
-            return;
+            return null;
         }
 
         // 2. Compute the diff
@@ -48,7 +49,7 @@ export async function processPostLearnings(postId: string) {
             .map((part) => `${part.added ? 'ADDED' : 'REMOVED'}: "${part.value.trim()}"`)
             .join('\n');
 
-        if (!diffSummary) return;
+        if (!diffSummary) return null;
 
         // 3. Infer new writing style rules via Gemini
         const rulesText = await withRetry(async () => {
@@ -84,11 +85,16 @@ Return ONLY the JSON array.`;
 
             if (insertError) {
                 console.error('[learnings] Failed to insert learnings:', insertError);
+                return null;
             } else {
                 console.log(`[learnings] Successfully stored ${insights.length} learnings for post ${postId}`);
+                return insights;
             }
         }
+
+        return null;
     } catch (e) {
         console.error('[learnings] Unhandled error during learning process:', e);
+        return null;
     }
 }

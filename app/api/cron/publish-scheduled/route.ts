@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 async function publishPost(
-    supabase: Awaited<ReturnType<typeof createClient>>,
+    supabase: SupabaseClient,
     post: { id: string; final_text: string | null; original_draft: string | null; image_url: string | null },
     creds: { access_token: string; organization_urn: string }
 ) {
@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    // Use service-role admin client — no user session available from GH Actions
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // Get LinkedIn credentials
     const { data: creds } = await supabase

@@ -35,11 +35,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Trigger learning if transitioned to a finalized state
+        let learnings: string[] | null = null;
         if (['Approved', 'Scheduled', 'Published'].includes(status)) {
-            processPostLearnings(postId).catch(console.error);
+            try {
+                learnings = await processPostLearnings(postId);
+            } catch (e) {
+                console.error('[update-post-status] Learning extraction failed (non-blocking):', e);
+            }
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, learnings });
     } catch (e) {
         console.error('API Error:', e);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
