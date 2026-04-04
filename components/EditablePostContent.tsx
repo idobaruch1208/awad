@@ -180,7 +180,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
                 {isEditable ? (
                     <textarea
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        onChange={(e) => handleTextChange(e.target.value)}
                         dir="auto"
                         className="w-full bg-transparent text-gray-200 text-sm leading-relaxed resize-none outline-none border border-gray-700 rounded-xl p-4 focus:border-violet-500/50 transition-colors min-h-[300px]"
                         rows={16}
