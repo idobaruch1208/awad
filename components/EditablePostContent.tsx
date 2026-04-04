@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CopyButton from './CopyButton';
 import type { PostStatus } from '@/lib/types';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 interface EditablePostContentProps {
     postId: string;
@@ -14,23 +15,30 @@ interface EditablePostContentProps {
 const EDITABLE_STATUSES: PostStatus[] = ['Draft', 'Reviewing', 'Approved'];
 
 function detectLanguage(text: string): 'he' | 'en' {
-    // Simple heuristic: if more than 30% of chars are Hebrew, it's Hebrew
     const hebrewChars = (text.match(/[\u0590-\u05FF]/g) || []).length;
     return hebrewChars / text.length > 0.15 ? 'he' : 'en';
 }
 
 export default function EditablePostContent({ postId, initialText, status }: EditablePostContentProps) {
-    const [text, setText] = useState(initialText);
+    const {
+        text,
+        handleChange,
+        snapshotBeforeAI,
+        setTextDirect,
+        undo,
+        redo,
+        handleKeyDown,
+        canUndo,
+        canRedo,
+        resetWith,
+    } = useUndoRedo(initialText);
+
     const [savedText, setSavedText] = useState(initialText);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [refineInstruction, setRefineInstruction] = useState('');
     const [refining, setRefining] = useState(false);
     const [translating, setTranslating] = useState(false);
-    
-    // Undo history state
-    const [history, setHistory] = useState<string[]>([]);
-    const historyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const router = useRouter();
 
@@ -41,30 +49,11 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
     const currentLang = detectLanguage(text);
     const targetLang = currentLang === 'he' ? 'English' : 'Hebrew (עברית)';
 
-    const pushHistory = useCallback((prev: string) => {
-        if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
-        historyTimerRef.current = setTimeout(() => {
-            setHistory(h => [...h.slice(-49), prev]); // keep last 50 snapshots
-        }, 600);
-    }, []);
-
-    const handleTextChange = (newText: string) => {
-        pushHistory(text); // snapshot current before applying new
-        setText(newText);
-    };
-
-    const handleUndo = () => {
-        if (history.length === 0) return;
-        const prev = history[history.length - 1];
-        setHistory(h => h.slice(0, -1));
-        setText(prev);
-    };
-
     // Sync if server data changes
     useEffect(() => {
-        setText(initialText);
+        resetWith(initialText);
         setSavedText(initialText);
-    }, [initialText]);
+    }, [initialText, resetWith]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -90,6 +79,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
         if (!refineInstruction.trim()) return;
         setRefining(true);
         try {
+            snapshotBeforeAI();
             const res = await fetch('/api/refine-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -97,8 +87,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
             });
             const data = await res.json() as { refinedText?: string; error?: string };
             if (data.refinedText) {
-                setHistory(h => [...h.slice(-49), text]);
-                setText(data.refinedText);
+                setTextDirect(data.refinedText);
                 setRefineInstruction('');
             }
         } catch (error) {
@@ -113,6 +102,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
         setTranslating(true);
         const targetCode = currentLang === 'he' ? 'English' : 'Hebrew';
         try {
+            snapshotBeforeAI();
             const res = await fetch('/api/refine-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -123,8 +113,7 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
             });
             const data = await res.json() as { refinedText?: string; error?: string };
             if (data.refinedText) {
-                setHistory(h => [...h.slice(-49), text]);
-                setText(data.refinedText);
+                setTextDirect(data.refinedText);
             }
         } catch (error) {
             console.error('Translation failed:', error);
@@ -139,17 +128,28 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
             <div className="glass rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold text-gray-300">Post Content</h2>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={handleUndo}
-                            disabled={history.length === 0}
-                            title="Undo last change"
+                            onClick={undo}
+                            disabled={!canUndo}
+                            title="Undo (Ctrl+Z)"
                             className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                             </svg>
                             Undo
+                        </button>
+                        <button
+                            onClick={redo}
+                            disabled={!canRedo}
+                            title="Redo (Ctrl+Y)"
+                            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            Redo
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+                            </svg>
                         </button>
                         <div className="h-4 w-px bg-gray-800 hidden sm:block"></div>
                         {text && <CopyButton text={text} />}
@@ -180,7 +180,8 @@ export default function EditablePostContent({ postId, initialText, status }: Edi
                 {isEditable ? (
                     <textarea
                         value={text}
-                        onChange={(e) => handleTextChange(e.target.value)}
+                        onChange={(e) => handleChange(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         dir="auto"
                         className="w-full bg-transparent text-gray-200 text-sm leading-relaxed resize-none outline-none border border-gray-700 rounded-xl p-4 focus:border-violet-500/50 transition-colors min-h-[300px]"
                         rows={16}

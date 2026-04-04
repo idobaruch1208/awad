@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Stage = 'topic-select' | 'intent-select' | 'generating' | 'editing';
@@ -198,7 +199,17 @@ function PostEditorStage({
     onToast: (msg: string, type: 'success' | 'error') => void;
 }) {
     const router = useRouter();
-    const [text, setText] = useState(draft.postText);
+    const {
+        text,
+        handleChange: handleTextChange,
+        snapshotBeforeAI,
+        setTextDirect,
+        undo: handleUndo,
+        redo: handleRedo,
+        handleKeyDown,
+        canUndo,
+        canRedo,
+    } = useUndoRedo(draft.postText);
     const [imageUrl, setImageUrl] = useState(draft.imageUrl);
     const [refineInstruction, setRefineInstruction] = useState('');
     const [refining, setRefining] = useState(false);
@@ -209,31 +220,8 @@ function PostEditorStage({
     const [scheduling, setScheduling] = useState(false);
     const [scheduleDate, setScheduleDate] = useState('');
     const [scheduleTime, setScheduleTime] = useState('10:00');
-    // Undo history stack – stores previous text states
-    const [history, setHistory] = useState<string[]>([]);
-    const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const charCount = text.length;
     const charLimit = 3000;
-
-    // Push to history with 600 ms debounce so rapid keystrokes don't flood the stack
-    const pushHistory = useCallback((prev: string) => {
-        if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
-        historyTimerRef.current = setTimeout(() => {
-            setHistory(h => [...h.slice(-49), prev]); // keep last 50 snapshots
-        }, 600);
-    }, []);
-
-    const handleTextChange = (newText: string) => {
-        pushHistory(text); // snapshot current before applying new
-        setText(newText);
-    };
-
-    const handleUndo = () => {
-        if (history.length === 0) return;
-        const prev = history[history.length - 1];
-        setHistory(h => h.slice(0, -1));
-        setText(prev);
-    };
 
     const handleRefine = async () => {
         if (!refineInstruction.trim()) return;
@@ -246,9 +234,8 @@ function PostEditorStage({
             });
             const data = await res.json() as { refinedText?: string; error?: string };
             if (data.refinedText) {
-                // Immediately snapshot before AI overwrites
-                setHistory(h => [...h.slice(-49), text]);
-                setText(data.refinedText);
+                snapshotBeforeAI();
+                setTextDirect(data.refinedText);
                 setRefineInstruction('');
             }
             else onToast(data.error ?? 'Refinement failed', 'error');
@@ -405,14 +392,25 @@ function PostEditorStage({
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={handleUndo}
-                                    disabled={history.length === 0}
-                                    title="Undo last change"
+                                    disabled={!canUndo}
+                                    title="Undo (Ctrl+Z)"
                                     className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                     </svg>
                                     Undo
+                                </button>
+                                <button
+                                    onClick={handleRedo}
+                                    disabled={!canRedo}
+                                    title="Redo (Ctrl+Y)"
+                                    className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    Redo
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+                                    </svg>
                                 </button>
                                 <div className="h-4 w-px bg-gray-800 hidden sm:block"></div>
                                 <button
@@ -434,6 +432,7 @@ function PostEditorStage({
                         <textarea
                             value={text}
                             onChange={(e) => handleTextChange(e.target.value)}
+                            onKeyDown={handleKeyDown}
                             dir="auto"
                             className="input-field resize-none font-mono text-xs leading-relaxed"
                             rows={16}
