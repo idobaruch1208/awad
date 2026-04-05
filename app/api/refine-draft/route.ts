@@ -10,9 +10,10 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { currentText, instruction } = await request.json() as {
+    const { currentText, instruction, useProModel } = await request.json() as {
         currentText: string;
         instruction: string;
+        useProModel?: boolean;
     };
 
     if (!currentText?.trim() || !instruction?.trim()) {
@@ -20,8 +21,9 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        const modelName = useProModel ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
         const refinedText = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = genAI.getGenerativeModel({ model: modelName });
             const prompt = `You are editing a LinkedIn post for AWAD, an Israeli startup law firm.
 
 Current post:

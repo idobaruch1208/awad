@@ -220,6 +220,7 @@ function PostEditorStage({
     const [scheduling, setScheduling] = useState(false);
     const [scheduleDate, setScheduleDate] = useState('');
     const [scheduleTime, setScheduleTime] = useState('10:00');
+    const [useProModel, setUseProModel] = useState(false);
     const charCount = text.length;
     const charLimit = 3000;
 
@@ -230,7 +231,7 @@ function PostEditorStage({
             const res = await fetch('/api/refine-draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentText: text, instruction: refineInstruction }),
+                body: JSON.stringify({ currentText: text, instruction: refineInstruction, useProModel }),
             });
             const data = await res.json() as { refinedText?: string; error?: string };
             if (data.refinedText) {
@@ -441,7 +442,28 @@ function PostEditorStage({
 
                     {/* Refine with AI */}
                     <div className="glass rounded-2xl p-5">
-                        <label className="text-sm font-medium text-gray-300 block mb-3">✨ Refine with AI</label>
+                        <div className="flex items-center justify-between mb-3">
+                            <label className="text-sm font-medium text-gray-300">✨ Refine with AI</label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <span className={`text-xs font-medium transition-colors ${useProModel ? 'text-amber-400' : 'text-gray-500'}`}>
+                                    {useProModel ? '⚡ Deep Refine (Pro AI)' : 'Standard'}
+                                </span>
+                                <div
+                                    onClick={() => setUseProModel(!useProModel)}
+                                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
+                                        useProModel
+                                            ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                            : 'bg-gray-700'
+                                    }`}
+                                >
+                                    <div
+                                        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                                            useProModel ? 'translate-x-4' : 'translate-x-0'
+                                        }`}
+                                    />
+                                </div>
+                            </label>
+                        </div>
                         <div className="flex gap-2">
                             <textarea
                                 className="input-field flex-1 resize-none overflow-hidden"
@@ -463,11 +485,20 @@ function PostEditorStage({
                             <button
                                 onClick={handleRefine}
                                 disabled={refining || !refineInstruction.trim()}
-                                className="btn-secondary px-4 flex-shrink-0"
+                                className={`px-4 flex-shrink-0 rounded-lg text-sm font-medium transition-all ${
+                                    useProModel
+                                        ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-900/20'
+                                        : 'btn-secondary'
+                                } disabled:opacity-50`}
                             >
                                 {refining ? <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : 'Apply'}
                             </button>
                         </div>
+                        {refining && (
+                            <p className={`text-xs mt-2 animate-pulse ${useProModel ? 'text-amber-400' : 'text-violet-400'}`}>
+                                {useProModel ? 'Pro AI is deeply refining your post...' : 'AI is refining your post...'}
+                            </p>
+                        )}
                     </div>
                 </div>
 
