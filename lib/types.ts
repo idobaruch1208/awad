@@ -17,6 +17,7 @@ export interface Post {
     created_at: string;
     updated_at: string;
     is_archived?: boolean;
+    impressions?: number | null;
 }
 
 export interface Project {

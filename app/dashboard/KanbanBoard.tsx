@@ -117,7 +117,15 @@ export default function KanbanBoard({ initialPosts, columns }: { initialPosts: P
                                             {post.topic}
                                         </p>
                                         <div className="flex items-center justify-between text-[11px] text-gray-500 select-none">
-                                            <span>{new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span>{new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                {post.impressions != null && post.impressions > 0 && (
+                                                    <span className="flex items-center gap-0.5 text-blue-400/80" title={`${post.impressions.toLocaleString()} impressions`}>
+                                                        <span className="text-[10px]">👁️</span>
+                                                        <span className="font-medium">{post.impressions >= 1000 ? `${(post.impressions / 1000).toFixed(1)}k` : post.impressions}</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                             <StatusBadge status={post.status} />
                                         </div>
                                     </Link>

@@ -16,9 +16,13 @@ interface ProfileContext {
     writingRules?: string[];
 }
 
-function buildSystemPrompt(topic: string, prioritizedPosts: string, styleLessons: string[], language: string, profile?: ProfileContext): string {
+function buildSystemPrompt(topic: string, prioritizedPosts: string, topPerformers: string, styleLessons: string[], language: string, profile?: ProfileContext): string {
     const postsContext = prioritizedPosts
         ? `\n\nHere are examples of past LinkedIn posts, prioritized by their success level:\n${prioritizedPosts}\n\nBefore generating new content, analyze the provided 'Published' posts. These represent the final, manually edited, and user-approved versions. You MUST internalize and mimic their specific tone, professional vocabulary, sentence structure, and formatting.\nPay close attention to the structural patterns in these published posts and apply them to all new generations. Do not output generic AI-sounding text; match the exact persona of the injected examples.`
+        : '';
+
+    const performanceContext = topPerformers
+        ? `\n\n🏆 GOLD STANDARD — TOP-PERFORMING POSTS (ranked by actual LinkedIn impressions):\n${topPerformers}\n\nCRITICAL INSTRUCTION: The posts above received the highest real-world engagement. Carefully analyze their hook, sentence length, tone, formatting, and structure. Your newly generated post MUST heavily emulate the style and structure of these top-performing posts. They are your primary source of truth for what works.`
         : '';
 
     const lessonsContext = styleLessons.length > 0
@@ -64,7 +68,7 @@ Brand Voice Guidelines:
 - Include relevant emojis sparingly (1-3 max)
 - End with a clear call-to-action or thought-provoking question
 - Max 3,000 characters, ideally 800-1,200 characters
-- Include 3-5 relevant hashtags at the end${langInstruction}${postsContext}${lessonsContext}${writingRulesContext}
+- Include 3-5 relevant hashtags at the end${langInstruction}${postsContext}${performanceContext}${lessonsContext}${writingRulesContext}
 
 Topic to write about: ${topic}
 
@@ -92,6 +96,7 @@ export async function POST(request: NextRequest) {
     try {
         // Step 1: Fetch historical posts from DB prioritized by status
         let prioritizedPostsContext = '';
+        let topPerformersContext = '';
         let styleLessons: string[] = [];
         let profileContext: ProfileContext | undefined;
 
@@ -131,6 +136,29 @@ export async function POST(request: NextRequest) {
             }
 
             const { data: dbPosts, error: postsError } = await postsQuery;
+
+            // Fetch top-performing posts by impressions (Gold Standard)
+            let topPerformersQuery = supabase
+                .from('posts')
+                .select('final_text, impressions, topic')
+                .eq('user_id', user.id)
+                .eq('status', 'Published')
+                .not('impressions', 'is', null)
+                .gt('impressions', 0)
+                .order('impressions', { ascending: false })
+                .limit(5);
+
+            if (projectId) {
+                topPerformersQuery = topPerformersQuery.eq('project_id', projectId);
+            }
+
+            const { data: topPosts } = await topPerformersQuery;
+
+            if (topPosts && topPosts.length > 0) {
+                topPerformersContext = topPosts
+                    .map((p, i) => `--- [#${i + 1} — ${p.impressions!.toLocaleString()} impressions] ---\nTopic: ${p.topic}\n${p.final_text}`)
+                    .join('\n\n');
+            }
 
             if (!postsError && dbPosts && dbPosts.length > 0) {
                 const published = dbPosts.filter(p => p.status === 'Published').map(p => p.final_text).filter(Boolean);
@@ -189,6 +217,7 @@ export async function POST(request: NextRequest) {
                 const basePrompt = buildSystemPrompt(
                     intent && sourceText ? intent : topic,
                     prioritizedPostsContext,
+                    topPerformersContext,
                     styleLessons,
                     language || 'en',
                     profileContext

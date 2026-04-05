@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import StatusSelector from '@/components/StatusSelector';
 import EditablePostContent from '@/components/EditablePostContent';
+import ImpressionsInput from '@/components/ImpressionsInput';
 import Link from 'next/link';
 import type { Post } from '@/lib/types';
 import { format } from 'date-fns';
@@ -133,6 +134,7 @@ export default async function PostDetailPage({
                                     <dd className="text-gray-300 font-mono text-[10px]">{typedPost.linkedin_post_id}</dd>
                                 </div>
                             )}
+                            <ImpressionsInput postId={typedPost.id} initialValue={typedPost.impressions ?? null} />
                         </dl>
                     </div>
                 </div>
