@@ -110,6 +110,7 @@ export default async function PostsPage({
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Published</th>
+                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Impressions</th>
                                 <th className="w-10"></th>
                             </tr>
                         </thead>
@@ -138,6 +139,16 @@ export default async function PostsPage({
                                             : post.status === 'Scheduled' && post.target_timestamp
                                                 ? `⏰ ${format(new Date(post.target_timestamp), 'MMM d, HH:mm')}`
                                                 : '—'}
+                                    </td>
+                                    <td className="px-6 py-4 text-xs">
+                                        {post.impressions != null && post.impressions > 0 ? (
+                                            <span className="flex items-center gap-1 text-blue-400/80">
+                                                <span className="text-[10px]">👁️</span>
+                                                <span className="font-medium">{post.impressions >= 1000 ? `${(post.impressions / 1000).toFixed(1)}k` : post.impressions.toLocaleString()}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-600">—</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <PostActionsMenu postId={post.id} />

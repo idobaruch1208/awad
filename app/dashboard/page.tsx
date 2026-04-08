@@ -155,7 +155,13 @@ export default async function DashboardHomePage({ searchParams }: Props) {
                                                 })}
                                             </p>
                                         </div>
-                                        <div className="flex-shrink-0">
+                                        <div className="flex items-center gap-3 flex-shrink-0">
+                                            {post.impressions != null && post.impressions > 0 && (
+                                                <span className="flex items-center gap-1 text-xs text-blue-400/80" title={`${post.impressions.toLocaleString()} impressions`}>
+                                                    <span className="text-[10px]">👁️</span>
+                                                    <span className="font-medium">{post.impressions >= 1000 ? `${(post.impressions / 1000).toFixed(1)}k` : post.impressions}</span>
+                                                </span>
+                                            )}
                                             <StatusBadge status={post.status} />
                                         </div>
                                     </Link>
