@@ -134,7 +134,22 @@ export default async function PostDetailPage({
                                     <dd className="text-gray-300 font-mono text-[10px]">{typedPost.linkedin_post_id}</dd>
                                 </div>
                             )}
-                            <ImpressionsInput postId={typedPost.id} initialValue={typedPost.impressions ?? null} />
+                            {typedPost.tracking_id && (
+                                <div className="flex justify-between border-t border-gray-800 pt-3">
+                                    <dt className="text-gray-500 flex items-center gap-1">
+                                        <span className="text-xs">🔖</span>
+                                        Tracking ID
+                                    </dt>
+                                    <dd className="text-gray-300 font-mono text-xs">#{typedPost.tracking_id}</dd>
+                                </div>
+                            )}
+                            <ImpressionsInput
+                                postId={typedPost.id}
+                                initialValue={typedPost.impressions ?? null}
+                                publishedAt={typedPost.published_at}
+                                status={typedPost.status}
+                                trackingId={typedPost.tracking_id}
+                            />
                         </dl>
                     </div>
                 </div>

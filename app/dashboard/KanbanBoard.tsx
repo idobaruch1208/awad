@@ -119,6 +119,9 @@ export default function KanbanBoard({ initialPosts, columns }: { initialPosts: P
                                         <div className="flex items-center justify-between text-[11px] text-gray-500 select-none">
                                             <div className="flex items-center gap-2">
                                                 <span>{new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                {post.tracking_id && post.status === 'Published' && (
+                                                    <span className="text-gray-600 font-mono text-[10px]">#{post.tracking_id}</span>
+                                                )}
                                                 {post.impressions != null && post.impressions > 0 && (
                                                     <span className="flex items-center gap-0.5 text-blue-400/80" title={`${post.impressions.toLocaleString()} impressions`}>
                                                         <span className="text-[10px]">👁️</span>

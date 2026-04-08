@@ -107,6 +107,7 @@ export default async function PostsPage({
                         <thead>
                             <tr className="border-b border-gray-800">
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Topic</th>
+                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
                                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Published</th>
@@ -126,6 +127,13 @@ export default async function PostsPage({
                                                 </div>
                                             )}
                                         </Link>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {post.tracking_id ? (
+                                            <span className="text-gray-500 font-mono text-xs block">#{post.tracking_id}</span>
+                                        ) : (
+                                            <span className="text-gray-700 text-xs">—</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4">
                                         <StatusBadge status={post.status} />

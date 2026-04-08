@@ -231,6 +231,10 @@ export async function POST(request: NextRequest) {
             generateImage(topic),
         ]);
 
+        // Generate a unique 4-digit tracking ID for LinkedIn cross-referencing
+        const trackingId = String(Math.floor(1000 + Math.random() * 9000));
+        const postTextWithTracking = `${postText}\n\n#${trackingId}`;
+
         // Save initial draft to Supabase
         const { data: post, error: dbError } = await supabase
             .from('posts')
@@ -238,10 +242,11 @@ export async function POST(request: NextRequest) {
                 user_id: user.id,
                 project_id: projectId || null,
                 topic,
-                original_draft: postText,
-                final_text: postText,
+                original_draft: postTextWithTracking,
+                final_text: postTextWithTracking,
                 image_url: imageUrl,
                 status: 'Reviewing',
+                tracking_id: trackingId,
             })
             .select()
             .single();
@@ -250,9 +255,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             postId: post.id,
-            postText,
+            postText: postTextWithTracking,
             imageUrl,
-            originalDraft: postText,
+            originalDraft: postTextWithTracking,
         });
     } catch (error) {
         console.error('[generate-draft] Error:', error);

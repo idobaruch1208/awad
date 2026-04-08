@@ -51,6 +51,15 @@ export default async function DashboardHomePage({ searchParams }: Props) {
     const recentPosts = allPosts.slice(0, 5);
     const columns = ['Draft', 'Reviewing', 'Approved', 'Scheduled', 'Published'];
 
+    // Find published posts that are 9+ days old with no impressions
+    const now = new Date();
+    const postsNeedingImpressions = allPosts.filter(p => {
+        if (p.status !== 'Published' || p.impressions != null) return false;
+        if (!p.published_at) return false;
+        const daysAgo = Math.floor((now.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24));
+        return daysAgo >= 9;
+    });
+
     return (
         <div className="p-4 sm:p-8 pt-16 md:pt-8">
             {/* Header */}
@@ -88,6 +97,37 @@ export default async function DashboardHomePage({ searchParams }: Props) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                 </Link>
+            )}
+
+            {/* Impressions Reminder Banner */}
+            {postsNeedingImpressions.length > 0 && (
+                <div className="mb-6 p-4 rounded-xl bg-blue-950/40 border border-blue-700/40">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">📊</span>
+                        <h3 className="text-sm font-semibold text-blue-300">
+                            {postsNeedingImpressions.length} post{postsNeedingImpressions.length !== 1 ? 's' : ''} waiting for impressions data
+                        </h3>
+                    </div>
+                    <ul className="space-y-1.5 ml-7">
+                        {postsNeedingImpressions.slice(0, 5).map(p => (
+                            <li key={p.id}>
+                                <Link
+                                    href={`/dashboard/posts/${p.id}`}
+                                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-2"
+                                >
+                                    <span className="truncate max-w-[300px]">{p.topic}</span>
+                                    {p.tracking_id && (
+                                        <span className="text-gray-500 font-mono flex-shrink-0">#{p.tracking_id}</span>
+                                    )}
+                                    <span className="text-gray-600">→</span>
+                                </Link>
+                            </li>
+                        ))}
+                        {postsNeedingImpressions.length > 5 && (
+                            <li className="text-xs text-gray-500">and {postsNeedingImpressions.length - 5} more...</li>
+                        )}
+                    </ul>
+                </div>
             )}
 
             {/* View Toggles */}
