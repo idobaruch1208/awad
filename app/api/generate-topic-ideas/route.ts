@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         const topics = await withRetry(async () => {
             const model = genAI.getGenerativeModel({ 
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.0-flash',
                 // Disable safety filters that commonly block content generation contexts
                 safetySettings: [
                     { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any },

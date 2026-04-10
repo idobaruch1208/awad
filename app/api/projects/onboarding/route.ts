@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         try {
             const prompt = buildAnalysisPrompt(payload);
             aiAnalysis = await withRetry(async () => {
-                const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
                 const result = await model.generateContent(prompt);
                 const text = result.response.text().trim();
                 const match = text.match(/\{[\s\S]*\}/);

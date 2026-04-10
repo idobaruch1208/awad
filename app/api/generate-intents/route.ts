@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const intents = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             const langInstruction = language === 'he' ? 'Return the labels and descriptions in HEBREW (עברית).' : 'Return the labels and descriptions in ENGLISH.';
 
             const prompt = `A user pasted the following text into an AI content generator for a LinkedIn post:

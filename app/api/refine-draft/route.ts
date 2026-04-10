@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const modelName = useProModel ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+        const modelName = useProModel ? 'gemini-2.5-pro' : 'gemini-2.0-flash';
         const refinedText = await withRetry(async () => {
             const model = genAI.getGenerativeModel({ model: modelName });
             const prompt = `You are editing a LinkedIn post for AWAD, an Israeli startup law firm.

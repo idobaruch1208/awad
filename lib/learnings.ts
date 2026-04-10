@@ -53,7 +53,7 @@ export async function processPostLearnings(postId: string): Promise<string[] | n
 
         // 3. Infer new writing style rules via Gemini
         const rulesText = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             const prompt = `A user manually edited an AI-generated LinkedIn post. 
 Based on the following diff, infer 1-3 concise and specific "Improvement Insights" or writing style rules that the AI must follow in future posts. 
 For example: "User shortened sentences", "Removed hashtags", or "Added a more professional tone".
