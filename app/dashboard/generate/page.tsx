@@ -70,22 +70,34 @@ function LanguageToggle({ lang, setLang }: { lang: string, setLang: (l: string) 
 function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: string) => void }) {
     const [topics, setTopics] = useState<string[]>([]);
     const [loadingTopics, setLoadingTopics] = useState(true);
+    const [errorMsg, setErrorMsg] = useState('');
     const [customTopic, setCustomTopic] = useState('');
     const [selected, setSelected] = useState<string | null>(null);
     const { lang, setLang } = usePostLanguage();
     const isRtl = lang === 'he';
 
-    useEffect(() => {
+    const fetchTopics = useCallback(() => {
+        setLoadingTopics(true);
+        setErrorMsg('');
         const projectId = document.cookie.split('; ').find(c => c.startsWith('active_project_id='))?.split('=')[1] || '';
         
-        // Use the current hook state for the fetch
-        const fetchLang = lang;
-        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: fetchLang, projectId }) })
-            .then((r) => r.json())
-            .then((d) => setTopics(d.topics ?? []))
-            .catch(() => setTopics([]))
+        fetch('/api/generate-topic-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: lang, projectId }) })
+            .then(async (r) => {
+                const d = await r.json();
+                if (!r.ok || d.error) throw new Error(d.error || 'Failed to generate topics');
+                if (!d.topics || d.topics.length === 0) throw new Error('AI returned an empty list. Please try again.');
+                setTopics(d.topics);
+            })
+            .catch((e) => {
+                setTopics([]);
+                setErrorMsg(e.message || 'A network error occurred.');
+            })
             .finally(() => setLoadingTopics(false));
-    }, [lang]); // Refetch topics if language changes!
+    }, [lang]);
+
+    useEffect(() => {
+        fetchTopics();
+    }, [fetchTopics]);
 
     const handleConfirm = () => {
         const topic = customTopic.trim() || selected;
@@ -107,6 +119,15 @@ function TopicSelectionStage({ onTopicConfirm }: { onTopicConfirm: (topic: strin
                         {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="shimmer h-14 rounded-xl" />
                         ))}
+                    </div>
+                ) : errorMsg ? (
+                    <div className="p-4 rounded-xl border border-red-900/50 bg-red-900/10 flex flex-col items-center justify-center text-center">
+                        <span className="text-red-500 mb-2">⚠️</span>
+                        <p className="text-sm font-medium text-red-300 mb-1">Could not load AI Suggestions</p>
+                        <p className="text-xs text-gray-400 mb-4">{errorMsg}</p>
+                        <button onClick={fetchTopics} className="btn-secondary text-xs py-1.5 px-4 rounded">
+                            ↻ Try Again
+                        </button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

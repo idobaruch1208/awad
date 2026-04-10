@@ -155,12 +155,39 @@ export async function POST(request: NextRequest) {
         console.log('[generate-topic-ideas] Final prompt length:', prompt.length, 'chars');
 
         const topics = await withRetry(async () => {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = genAI.getGenerativeModel({ 
+                model: 'gemini-2.5-flash',
+                // Disable safety filters that commonly block content generation contexts
+                safetySettings: [
+                    { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any },
+                    { category: 'HARM_CATEGORY_HATE_SPEECH' as any, threshold: 'BLOCK_NONE' as any },
+                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
+                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, threshold: 'BLOCK_NONE' as any },
+                ]
+            });
+            
             const result = await model.generateContent(prompt);
             const text = result.response.text().trim();
-            const match = text.match(/\[[\s\S]*\]/);
-            if (!match) throw new Error('Invalid JSON response from Gemini');
-            return JSON.parse(match[0]) as string[];
+            console.log('[generate-topic-ideas] LLM Raw Text:', text.slice(0, 100) + '...');
+            
+            // Extract the first JSON array found in the text
+            const firstBracket = text.indexOf('[');
+            const lastBracket = text.lastIndexOf(']');
+            
+            if (firstBracket === -1 || lastBracket === -1 || lastBracket < firstBracket) {
+                console.error('[generate-topic-ideas] LLM failed to output an array:', text);
+                throw new Error('AI failed to format its response as a list.');
+            }
+            
+            const jsonStr = text.substring(firstBracket, lastBracket + 1);
+            try {
+                const parsed = JSON.parse(jsonStr);
+                if (!Array.isArray(parsed)) throw new Error('Not an array');
+                return parsed as string[];
+            } catch (e) {
+                console.error('[generate-topic-ideas] JSON parse failed on:', jsonStr);
+                throw new Error('Invalid JSON structure returned by AI.');
+            }
         });
 
         console.log('[generate-topic-ideas] Generated topics:', topics);
