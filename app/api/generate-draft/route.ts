@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         // Step 3 & 4: Generate post text + image concurrently
         const [postText, imageUrl] = await Promise.all([
             withRetry(async () => {
-                const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const basePrompt = buildSystemPrompt(
                     intent && sourceText ? intent : topic,
                     prioritizedPostsContext,

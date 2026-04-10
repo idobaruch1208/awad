@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         const topics = await withRetry(async () => {
             const model = genAI.getGenerativeModel({ 
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
                 // Disable safety filters that commonly block content generation contexts
                 safetySettings: [
                     { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any },
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
         const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota');
         const errorMsg = isRateLimit 
             ? 'AI Rate limit exceeded (Free Tier). Please wait 60 seconds and try again.'
-            : 'Failed to generate topic ideas. Please try again.';
+            : `Failed to generate topic ideas: ${error?.message || 'Unknown error'}`;
 
         return NextResponse.json(
             { error: errorMsg },
