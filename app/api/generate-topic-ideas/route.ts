@@ -193,11 +193,17 @@ export async function POST(request: NextRequest) {
         console.log('[generate-topic-ideas] Generated topics:', topics);
 
         return NextResponse.json({ topics });
-    } catch (error) {
+    } catch (error: any) {
         console.error('[generate-topic-ideas] Error:', error);
+
+        const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota');
+        const errorMsg = isRateLimit 
+            ? 'AI Rate limit exceeded (Free Tier). Please wait 60 seconds and try again.'
+            : 'Failed to generate topic ideas. Please try again.';
+
         return NextResponse.json(
-            { error: 'Failed to generate topic ideas. Please try again.' },
-            { status: 500 }
+            { error: errorMsg },
+            { status: isRateLimit ? 429 : 500 }
         );
     }
 }
